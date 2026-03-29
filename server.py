@@ -12,12 +12,18 @@ df_raw = None
 df_down = None
 df_10g = None
 G = nx.Graph()
+ip_name_map = {}   # IP → human-readable node name
 last_loaded = None
 loaded_filename = "links.csv"
 
+def extract_node_name(endpoint):
+    """Extract human-readable site name from endpoint string like IP_SiteName_..."""
+    parts = str(endpoint).strip().split('_')
+    return parts[1].strip() if len(parts) > 1 else parts[0].strip()
+
 def clean_and_rebuild(df):
     """Clean dataframe and rebuild all derived data + graph."""
-    global df_raw, df_down, df_10g, G
+    global df_raw, df_down, df_10g, G, ip_name_map
 
     for col in df.columns:
         if df[col].dtype == object:
@@ -38,6 +44,16 @@ def clean_and_rebuild(df):
     data = df[['A End', 'Z End', 'Bandwidth', 'CIR Utilization Ratio(%)']].copy()
     data['A IP'] = data['A End'].astype(str).str.strip().str.split('_').str[0]
     data['Z IP'] = data['Z End'].astype(str).str.strip().str.split('_').str[0]
+
+    # Build IP → node name mapping
+    ip_name_map = {}
+    for _, row in data.iterrows():
+        a_ip = row['A IP']
+        z_ip = row['Z IP']
+        if a_ip not in ip_name_map:
+            ip_name_map[a_ip] = extract_node_name(row['A End'])
+        if z_ip not in ip_name_map:
+            ip_name_map[z_ip] = extract_node_name(row['Z End'])
 
     G = nx.Graph()
     for _, row in data.iterrows():
@@ -180,6 +196,7 @@ def find_path():
         'za_paths': za_results,
         'source': source,
         'target': target,
+        'names': ip_name_map,
     })
 
 @app.route('/api/nodes')
