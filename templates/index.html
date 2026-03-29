@@ -1,0 +1,814 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CPAN Network Explorer · BSNL Gujarat</title>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Syne:wght@400;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #f0f4f8;
+  --surface: #ffffff;
+  --surface2: #e8edf3;
+  --border: #c8d3df;
+  --accent: #0077cc;
+  --accent2: #6d28d9;
+  --green: #059669;
+  --red: #dc2626;
+  --amber: #d97706;
+  --text: #1e293b;
+  --muted: #475569;
+  --mono: 'JetBrains Mono', monospace;
+  --sans: 'Syne', sans-serif;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--text);font-family:var(--sans);min-height:100vh;overflow-x:hidden;font-size:15px}
+body::before{content:'';position:fixed;inset:0;background-image:linear-gradient(rgba(0,119,204,.04) 1px,transparent 1px),linear-gradient(90deg,rgba(0,119,204,.04) 1px,transparent 1px);background-size:40px 40px;pointer-events:none;z-index:0}
+
+/* ── Header ── */
+header{position:relative;z-index:10;padding:14px 28px;display:flex;align-items:center;gap:14px;border-bottom:1px solid var(--border);background:#ffffff;box-shadow:0 2px 8px rgba(0,0,0,.08)}
+.logo-ring{width:42px;height:42px;border-radius:50%;border:2px solid var(--accent);display:flex;align-items:center;justify-content:center;font-size:20px;box-shadow:0 0 12px rgba(0,119,204,.2);animation:pulse-ring 3s ease-in-out infinite;flex-shrink:0}
+@keyframes pulse-ring{0%,100%{box-shadow:0 0 12px rgba(0,119,204,.2)}50%{box-shadow:0 0 22px rgba(0,119,204,.45)}}
+header h1{font-size:1.25rem;font-weight:800;letter-spacing:-.5px;color:var(--text)}
+header h1 span{color:var(--accent)}
+.header-right{margin-left:auto;display:flex;align-items:center;gap:10px}
+.header-badge{background:linear-gradient(135deg,var(--accent2),#4f46e5);padding:5px 14px;border-radius:100px;font-size:12px;font-weight:700;letter-spacing:1px;text-transform:uppercase;font-family:var(--mono);color:#fff}
+
+/* ── Upload Button ── */
+.btn-upload{
+  display:flex;align-items:center;gap:8px;
+  background:rgba(0,119,204,.08);
+  border:1px solid rgba(0,119,204,.3);
+  color:var(--accent);
+  border-radius:8px;
+  padding:9px 18px;
+  font-family:var(--mono);font-size:13px;font-weight:600;
+  cursor:pointer;transition:all .2s;white-space:nowrap;
+}
+.btn-upload:hover{background:rgba(0,119,204,.15);border-color:var(--accent);box-shadow:0 2px 8px rgba(0,119,204,.2)}
+.btn-upload svg{width:15px;height:15px;flex-shrink:0}
+/* #file-input handled by .drop-zone input[type=file] */
+
+/* ── Upload Modal ── */
+.modal-overlay{
+  display:none;position:fixed;inset:0;z-index:100;
+  background:rgba(0,0,0,.4);backdrop-filter:blur(4px);
+  align-items:center;justify-content:center;
+}
+.modal-overlay.open{display:flex}
+.modal{
+  background:var(--surface);border:1px solid var(--border);border-radius:18px;
+  width:480px;max-width:94vw;overflow:hidden;
+  box-shadow:0 16px 48px rgba(0,0,0,.18);
+  animation:slide-up .22s ease;
+}
+@keyframes slide-up{from{transform:translateY(20px);opacity:0}to{transform:translateY(0);opacity:1}}
+.modal-top{
+  padding:20px 24px 18px;
+  background:var(--surface2);
+  border-bottom:1px solid var(--border);
+  display:flex;align-items:center;gap:10px;
+}
+.modal-top h3{font-size:1rem;font-weight:700;flex:1;color:var(--text)}
+.modal-top .close-btn{
+  background:none;border:none;color:var(--muted);cursor:pointer;
+  font-size:20px;line-height:1;padding:2px 6px;border-radius:6px;transition:color .15s;
+}
+.modal-top .close-btn:hover{color:var(--text)}
+.modal-body{padding:24px}
+
+/* Drop zone */
+.drop-zone{
+  border:2px dashed var(--border);border-radius:12px;
+  padding:32px 20px;text-align:center;cursor:pointer;
+  transition:all .2s;position:relative;
+}
+.drop-zone:hover,.drop-zone.dragover{border-color:var(--accent);background:rgba(0,119,204,.04)}
+.drop-zone input[type=file]{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%}
+.drop-icon{font-size:36px;margin-bottom:10px;display:block}
+.drop-zone p{font-size:14px;color:var(--muted);line-height:1.6;font-family:var(--mono)}
+.drop-zone strong{color:var(--accent)}
+
+.file-info{
+  display:none;margin-top:14px;
+  background:rgba(0,212,255,.06);border:1px solid rgba(0,212,255,.2);
+  border-radius:8px;padding:12px 14px;
+  display:flex;align-items:center;gap:10px;
+  font-family:var(--mono);font-size:12px;
+}
+.file-info{display:none}
+.file-info.show{display:flex}
+.file-info .fname{flex:1;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.file-info .fsize{color:var(--muted);white-space:nowrap}
+.file-info .remove-file{background:none;border:none;color:var(--muted);cursor:pointer;font-size:16px;padding:0 2px}
+.file-info .remove-file:hover{color:var(--red)}
+
+.modal-actions{display:flex;gap:10px;margin-top:18px}
+.btn-cancel{flex:1;background:none;border:1px solid var(--border);color:var(--muted);border-radius:8px;padding:10px;font-family:var(--sans);font-weight:600;font-size:14px;cursor:pointer;transition:all .2s}
+.btn-cancel:hover{border-color:var(--text);color:var(--text)}
+.btn-confirm{
+  flex:2;background:linear-gradient(135deg,var(--accent),#005fa3);
+  border:none;color:#fff;border-radius:8px;padding:10px;
+  font-family:var(--sans);font-weight:800;font-size:14px;
+  cursor:pointer;transition:opacity .2s;
+  display:flex;align-items:center;justify-content:center;gap:8px;
+}
+.btn-confirm:hover{opacity:.88}
+.btn-confirm:disabled{opacity:.4;cursor:not-allowed}
+
+/* Upload progress */
+.upload-progress{display:none;margin-top:14px}
+.upload-progress.show{display:block}
+.prog-bar{height:4px;background:var(--border);border-radius:100px;overflow:hidden;margin-bottom:8px}
+.prog-fill{height:100%;width:0;background:linear-gradient(90deg,var(--accent),#0099cc);border-radius:100px;transition:width .3s}
+.prog-label{font-family:var(--mono);font-size:12px;color:var(--muted);text-align:center}
+
+/* Upload result toast */
+.toast{
+  position:fixed;bottom:28px;right:28px;z-index:200;
+  background:var(--surface);border:1px solid var(--border);
+  border-radius:12px;padding:14px 18px;
+  display:flex;align-items:center;gap:12px;
+  box-shadow:0 6px 24px rgba(0,0,0,.15);
+  transform:translateY(80px);opacity:0;
+  transition:all .3s cubic-bezier(.34,1.56,.64,1);
+  font-family:var(--mono);font-size:14px;min-width:280px;max-width:380px;
+}
+.toast.show{transform:translateY(0);opacity:1}
+.toast.success{border-color:rgba(5,150,105,.4)}
+.toast.error  {border-color:rgba(220,38,38,.4)}
+.toast-icon{font-size:20px;flex-shrink:0}
+.toast-text{flex:1;line-height:1.4}
+.toast-text strong{display:block;color:var(--text);margin-bottom:2px}
+.toast-text span{color:var(--muted);font-size:12px}
+
+/* ── Stats bar ── */
+#stats-bar{position:relative;z-index:5;display:flex;gap:1px;background:var(--border);border-bottom:1px solid var(--border)}
+.stat-cell{flex:1;background:var(--surface);padding:14px 22px;display:flex;flex-direction:column;gap:3px}
+.stat-cell .label{font-size:11px;font-family:var(--mono);color:var(--muted);text-transform:uppercase;letter-spacing:1px;font-weight:600}
+.stat-cell .value{font-size:1.5rem;font-weight:800;font-family:var(--mono);color:var(--accent)}
+.stat-cell.red .value{color:var(--red)}
+.stat-cell.green .value{color:var(--green)}
+.stat-cell .sublabel{font-size:11px;font-family:var(--mono);color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+
+/* ── Tab Nav ── */
+.tab-nav{position:relative;z-index:5;display:flex;gap:0;background:var(--surface);border-bottom:2px solid var(--border);padding:0 28px}
+.tab-btn{background:none;border:none;color:var(--muted);font-family:var(--sans);font-size:14px;font-weight:700;letter-spacing:.3px;padding:14px 20px;cursor:pointer;border-bottom:3px solid transparent;margin-bottom:-2px;transition:all .2s;display:flex;align-items:center;gap:8px}
+.tab-btn:hover{color:var(--text)}
+.tab-btn.active{color:var(--accent);border-bottom-color:var(--accent)}
+.tab-badge{background:var(--surface2);color:var(--muted);padding:2px 8px;border-radius:100px;font-size:12px;font-family:var(--mono);font-weight:700}
+.tab-btn.active .tab-badge{background:rgba(0,119,204,.12);color:var(--accent)}
+
+/* ── Tab panels ── */
+.tab-panel{display:none;position:relative;z-index:5}
+.tab-panel.active{display:block}
+
+/* ── Path Finder ── */
+.finder-wrap{max-width:1000px;margin:36px auto;padding:0 24px}
+.search-card{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:26px 28px;margin-bottom:28px;position:relative;overflow:hidden}
+.search-card::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,var(--accent),var(--accent2))}
+.search-card h2{font-size:.9rem;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:1.5px;font-family:var(--mono);margin-bottom:20px}
+.input-row{display:flex;gap:14px;align-items:flex-end;flex-wrap:wrap}
+.input-group{flex:1;min-width:160px;display:flex;flex-direction:column;gap:7px}
+.input-group label{font-size:12px;font-family:var(--mono);color:var(--muted);text-transform:uppercase;letter-spacing:1px;font-weight:600}
+.input-group input,.ac-wrap input{background:#f8fafc;border:1.5px solid var(--border);border-radius:8px;color:var(--text);font-family:var(--mono);font-size:18px;padding:12px 15px;outline:none;transition:border-color .2s,box-shadow .2s}
+.input-group input:focus,.ac-wrap input:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(0,119,204,.12);background:#fff}
+.input-group input::placeholder,.ac-wrap input::placeholder{color:#94a3b8}
+.btn-find{background:linear-gradient(135deg,var(--accent),#005fa3);color:#fff;border:none;border-radius:8px;font-family:var(--sans);font-size:15px;font-weight:800;padding:11px 26px;cursor:pointer;white-space:nowrap;transition:opacity .2s,transform .1s}
+.btn-find:hover{opacity:.88}
+.btn-find:active{transform:scale(.97)}
+#error-msg{background:rgba(220,38,38,.08);border:1px solid rgba(220,38,38,.3);color:var(--red);border-radius:8px;padding:13px 16px;font-family:var(--mono);font-size:14px;margin-bottom:20px;display:none}
+
+/* ── Path Cards ── */
+.path-card{background:var(--surface);border:1.5px solid var(--border);border-radius:14px;margin-bottom:16px;overflow:hidden;transition:border-color .2s;box-shadow:0 2px 6px rgba(0,0,0,.06)}
+.path-card:hover{border-color:rgba(0,119,204,.4);box-shadow:0 4px 12px rgba(0,119,204,.1)}
+.path-card.best{border-color:var(--accent);box-shadow:0 4px 16px rgba(0,119,204,.15)}
+.path-header{display:flex;align-items:center;gap:12px;padding:14px 20px;background:var(--surface2);border-bottom:1.5px solid var(--border)}
+.path-num{width:30px;height:30px;border-radius:50%;background:var(--border);display:flex;align-items:center;justify-content:center;font-family:var(--mono);font-size:13px;font-weight:700;color:var(--text)}
+.path-card.best .path-num{background:rgba(0,119,204,.15);color:var(--accent)}
+.path-meta{display:flex;gap:8px;margin-left:auto;align-items:center;flex-wrap:wrap}
+.badge{padding:4px 11px;border-radius:100px;font-size:12px;font-family:var(--mono);font-weight:700}
+.badge.b10g{background:rgba(0,119,204,.12);color:var(--accent);border:1px solid rgba(0,119,204,.35)}
+.badge.bge{background:rgba(71,85,105,.1);color:var(--muted);border:1px solid var(--border)}
+.badge.bcir{background:rgba(5,150,105,.12);color:var(--green);border:1px solid rgba(5,150,105,.35)}
+.badge.bcir.mid{background:rgba(217,119,6,.12);color:var(--amber);border:1px solid rgba(217,119,6,.35)}
+.badge.bcir.high{background:rgba(220,38,38,.12);color:var(--red);border:1px solid rgba(220,38,38,.35)}
+.badge.best-badge{background:linear-gradient(135deg,rgba(0,119,204,.15),rgba(109,40,217,.15));color:var(--accent2);border:1px solid rgba(109,40,217,.3)}
+.hop-flow{padding:18px 20px;overflow-x:auto;background:#f8fafc}
+.hop-list{display:flex;align-items:center;flex-wrap:wrap;gap:0}
+.hop-node{display:flex;flex-direction:column;align-items:center}
+.hop-ip{background:#fff;border:1.5px solid var(--border);border-radius:8px;padding:8px 13px;font-family:var(--mono);font-size:14px;color:var(--text);font-weight:600;box-shadow:0 1px 3px rgba(0,0,0,.08)}
+.hop-connector{display:flex;flex-direction:column;align-items:center;padding:0 6px}
+.hop-line{width:36px;height:3px}
+.hop-line.is-10g{background:linear-gradient(90deg,var(--accent),#005fa3)}
+.hop-line.is-ge{background:var(--border)}
+.hop-bw-label{font-family:var(--mono);font-size:11px;font-weight:700;letter-spacing:.5px}
+.hop-bw-label.is-10g{color:var(--accent)}
+.hop-bw-label.is-ge{color:var(--muted)}
+.hop-cir-label{font-family:var(--mono);font-size:11px;color:var(--muted);font-weight:600}
+
+/* ── Table Panel ── */
+.table-wrap{padding:24px 30px}
+.panel-title{font-size:.9rem;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:1.5px;font-family:var(--mono);margin-bottom:16px;display:flex;align-items:center;gap:10px}
+.panel-title .dot{width:9px;height:9px;border-radius:50%;background:var(--green);box-shadow:0 0 6px var(--green)}
+.panel-title .dot.red{background:var(--red);box-shadow:0 0 6px var(--red);animation:blink 1.4s ease-in-out infinite}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.3}}
+.filter-bar{display:flex;gap:10px;margin-bottom:14px}
+.filter-bar input{background:#fff;border:1.5px solid var(--border);border-radius:8px;color:var(--text);font-family:var(--mono);font-size:14px;padding:9px 14px;outline:none;flex:1;transition:border-color .2s}
+.filter-bar input:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(0,119,204,.1)}
+.table-scroll{overflow-x:auto;border-radius:12px;border:1.5px solid var(--border);box-shadow:0 2px 8px rgba(0,0,0,.06)}
+table{width:100%;border-collapse:collapse;font-family:var(--mono);font-size:13px}
+thead tr{background:var(--surface2)}
+thead th{padding:11px 14px;text-align:left;color:var(--muted);font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;white-space:nowrap;border-bottom:1.5px solid var(--border)}
+tbody tr{border-bottom:1px solid var(--border);transition:background .15s}
+tbody tr:hover{background:#f0f7ff}
+tbody tr:last-child{border-bottom:none}
+tbody td{padding:10px 14px;vertical-align:middle;color:var(--text)}
+tbody tr.row-critical{background:rgba(220,38,38,.05)}
+tbody tr.row-critical:hover{background:rgba(220,38,38,.1)}
+tbody tr.row-warning{background:rgba(217,119,6,.05)}
+.alarm-badge{padding:3px 9px;border-radius:100px;font-size:11px;font-weight:700}
+.alarm-badge.critical{background:rgba(220,38,38,.12);color:var(--red);border:1px solid rgba(220,38,38,.35)}
+.alarm-badge.warning{background:rgba(217,119,6,.12);color:var(--amber);border:1px solid rgba(217,119,6,.35)}
+.cir-bar-wrap{display:flex;align-items:center;gap:8px}
+.cir-bar{flex:1;height:7px;border-radius:100px;background:var(--surface2);overflow:hidden;min-width:50px;border:1px solid var(--border)}
+.cir-fill{height:100%;border-radius:100px;transition:width .4s}
+.cir-fill.low{background:var(--green)}
+.cir-fill.mid{background:var(--amber)}
+.cir-fill.high{background:var(--red)}
+.cir-pct{font-size:12px;font-weight:700;white-space:nowrap;min-width:36px;text-align:right}
+.cir-pct.low{color:var(--green)}
+.cir-pct.mid{color:var(--amber)}
+.cir-pct.high{color:var(--red)}
+.bw-chip{padding:3px 9px;border-radius:100px;font-size:11px;font-weight:700;letter-spacing:.5px}
+.bw-chip.g10{background:rgba(0,119,204,.12);color:var(--accent);border:1px solid rgba(0,119,204,.3)}
+.bw-chip.ge{background:rgba(71,85,105,.1);color:var(--muted);border:1px solid var(--border)}
+.loading{text-align:center;padding:40px;color:var(--muted);font-family:var(--mono);font-size:14px}
+.spinner{display:inline-block;width:18px;height:18px;border:2px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin .7s linear infinite;margin-right:8px;vertical-align:middle}
+@keyframes spin{to{transform:rotate(360deg)}}
+.cell-name{max-width:300px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--text)}
+.cell-ip{max-width:170px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--muted);font-size:12px}
+
+/* ── Clear button ── */
+.btn-clear{
+  background:rgba(5,150,105,.08);border:1.5px solid rgba(5,150,105,.3);
+  color:var(--green);border-radius:8px;padding:11px 20px;
+  font-family:var(--mono);font-size:14px;font-weight:700;
+  cursor:pointer;transition:all .2s;
+}
+.btn-clear:hover{background:rgba(5,150,105,.16);border-color:var(--green);}
+
+/* ── IP Autocomplete ── */
+.ac-wrap{position:relative;flex:1;min-width:160px;display:flex;flex-direction:column;gap:6px}
+.ac-wrap label{font-size:12px;font-family:var(--mono);color:var(--muted);text-transform:uppercase;letter-spacing:1px;font-weight:600}
+.ac-dropdown{
+  display:none;position:absolute;top:100%;left:0;right:0;z-index:50;
+  background:#fff;border:1.5px solid var(--accent);border-top:none;
+  border-radius:0 0 8px 8px;max-height:220px;overflow-y:auto;
+  box-shadow:0 8px 24px rgba(0,0,0,.12);
+}
+.ac-dropdown.open{display:block}
+.ac-item{
+  padding:9px 14px;font-family:var(--mono);font-size:14px;color:var(--text);
+  cursor:pointer;transition:background .12s;
+}
+.ac-item:hover,.ac-item.active{background:rgba(0,119,204,.08);color:var(--accent)}
+.ac-item mark{background:none;color:var(--accent);font-weight:700}
+</style>
+</head>
+<body>
+
+<!-- ── Header ── -->
+<header>
+  <div class="logo-ring">🌐</div>
+  <h1>CPAN <span>Network Explorer</span></h1>
+  <div class="header-right">
+    <button class="btn-upload" onclick="openUploadModal()">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+        <polyline points="17 8 12 3 7 8"/>
+        <line x1="12" y1="3" x2="12" y2="15"/>
+      </svg>
+      Upload &amp; Refresh Data
+    </button>
+    <div class="header-badge">BSNL Gujarat NOC</div>
+  </div>
+</header>
+
+<!-- ── Upload Modal ── -->
+<div class="modal-overlay" id="upload-modal" onclick="handleOverlayClick(event)">
+  <div class="modal">
+    <div class="modal-top">
+      <span style="font-size:18px">📂</span>
+      <h3>Upload New Data File</h3>
+      <button class="close-btn" onclick="closeUploadModal()">×</button>
+    </div>
+    <div class="modal-body">
+      <div class="drop-zone" id="drop-zone"
+           ondragover="handleDragOver(event)"
+           ondragleave="handleDragLeave(event)"
+           ondrop="handleDrop(event)">
+        <input type="file" id="file-input" accept=".csv,.xlsx,.xls" onchange="handleFileSelect(event)">
+        <span class="drop-icon">🗂️</span>
+        <p>Drag &amp; drop your CSV or Excel file here<br>or <strong>click to browse</strong></p>
+        <p style="margin-top:8px;font-size:10px">Accepted: .csv · .xlsx · .xls</p>
+      </div>
+
+      <div class="file-info" id="file-info">
+        <span style="font-size:18px">📄</span>
+        <span class="fname" id="file-name"></span>
+        <span class="fsize" id="file-size"></span>
+        <button class="remove-file" onclick="clearFile()" title="Remove">×</button>
+      </div>
+
+      <div class="upload-progress" id="upload-progress">
+        <div class="prog-bar"><div class="prog-fill" id="prog-fill"></div></div>
+        <div class="prog-label" id="prog-label">Uploading…</div>
+      </div>
+
+      <div class="modal-actions">
+        <button class="btn-cancel" onclick="closeUploadModal()">Cancel</button>
+        <button class="btn-confirm" id="btn-confirm" onclick="doUpload()" disabled>
+          ⚡ Load &amp; Refresh
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ── Toast ── -->
+<div class="toast" id="toast">
+  <span class="toast-icon" id="toast-icon"></span>
+  <div class="toast-text">
+    <strong id="toast-title"></strong>
+    <span id="toast-sub"></span>
+  </div>
+</div>
+
+<!-- ── Stats Bar ── -->
+<div id="stats-bar">
+  <div class="stat-cell">
+    <span class="label">Total Links</span>
+    <span class="value" id="s-total">—</span>
+    <span class="sublabel" id="s-file">—</span>
+  </div>
+  <div class="stat-cell green">
+    <span class="label">10GE Links</span>
+    <span class="value" id="s-10g">—</span>
+  </div>
+  <div class="stat-cell red">
+    <span class="label">Down / Alarm</span>
+    <span class="value" id="s-down">—</span>
+  </div>
+  <div class="stat-cell">
+    <span class="label">Avg CIR (10GE)</span>
+    <span class="value" id="s-cir">—</span>
+  </div>
+  <div class="stat-cell">
+    <span class="label">Last Updated</span>
+    <span class="value" style="font-size:.85rem" id="s-updated">—</span>
+  </div>
+</div>
+
+<!-- ── Tab Nav ── -->
+<div class="tab-nav">
+  <button class="tab-btn active" onclick="switchTab('path',this)">🔗 Path Finder</button>
+  <button class="tab-btn" onclick="switchTab('optimum',this)">
+    ⚡ 10GE Optimum List <span class="tab-badge" id="badge-10g">—</span>
+  </button>
+  <button class="tab-btn" onclick="switchTab('down',this)">
+    🔴 Down DL List <span class="tab-badge" id="badge-down">—</span>
+  </button>
+</div>
+
+<!-- ── TAB 1: Path Finder ── -->
+<div id="tab-path" class="tab-panel active">
+  <div class="finder-wrap">
+    <div class="search-card">
+      <h2>// Find Network Path</h2>
+      <div class="input-row">
+        <div class="ac-wrap">
+          <label>Source IP</label>
+          <input type="text" id="src" placeholder="e.g. 24.167" autocomplete="off">
+          <div class="ac-dropdown" id="ac-src"></div>
+        </div>
+        <div class="ac-wrap">
+          <label>Target IP</label>
+          <input type="text" id="tgt" placeholder="e.g. 24.130" autocomplete="off">
+          <div class="ac-dropdown" id="ac-tgt"></div>
+        </div>
+        <button class="btn-find" onclick="findPath()">▶ Find Paths</button>
+        <button class="btn-clear" id="btn-clear" onclick="clearSearch()">✕ Clear</button>
+      </div>
+    </div>
+    <div id="error-msg"></div>
+    <div id="results"></div>
+  </div>
+</div>
+
+<!-- ── TAB 2: 10GE Optimum ── -->
+<div id="tab-optimum" class="tab-panel">
+  <div class="table-wrap">
+    <div class="panel-title">
+      <span class="dot"></span>
+      10GE Links — Sorted by CIR Utilization (Optimum First)
+    </div>
+    <div class="filter-bar">
+      <input type="text" id="filter-10g" placeholder="🔍 Search by name or IP…" oninput="filterTable('tbl-10g','filter-10g')">
+    </div>
+    <div class="table-scroll">
+      <table id="tbl-10g">
+        <thead><tr>
+          <th>#</th><th>Link Name</th><th>A End IP</th><th>Z End IP</th>
+          <th>CIR Util %</th><th>BW Util %</th><th>Last Updated</th>
+        </tr></thead>
+        <tbody id="body-10g"><tr><td colspan="7" class="loading"><span class="spinner"></span>Loading…</td></tr></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- ── TAB 3: Down Links ── -->
+<div id="tab-down" class="tab-panel">
+  <div class="table-wrap">
+    <div class="panel-title">
+      <span class="dot red"></span>
+      Down / Alarm DL Links
+    </div>
+    <div class="filter-bar">
+      <input type="text" id="filter-down" placeholder="🔍 Search by name or IP…" oninput="filterTable('tbl-down','filter-down')">
+    </div>
+    <div class="table-scroll">
+      <table id="tbl-down">
+        <thead><tr>
+          <th>#</th><th>Link Name</th><th>BW</th><th>Alarm</th>
+          <th>A End IP</th><th>Z End IP</th><th>CIR Util %</th><th>Last Updated</th>
+        </tr></thead>
+        <tbody id="body-down"><tr><td colspan="8" class="loading"><span class="spinner"></span>Loading…</td></tr></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<script>
+// ─────────────────────────────────────────────────────────────────────────────
+// Helpers
+// ─────────────────────────────────────────────────────────────────────────────
+function ipFromEnd(s){ return (s||'').trim().split('_')[0]; }
+function cirClass(v){ return v<=30?'low':v<=70?'mid':'high'; }
+function cirBar(v){
+  const c=cirClass(v);
+  return `<div class="cir-bar-wrap">
+    <div class="cir-bar"><div class="cir-fill ${c}" style="width:${Math.min(v,100)}%"></div></div>
+    <span class="cir-pct ${c}">${v}%</span></div>`;
+}
+function bwChip(bw){
+  const c=bw==='10GE'?'g10':'ge';
+  return `<span class="bw-chip ${c}">${bw}</span>`;
+}
+function filterTable(tid,fid){
+  const q=document.getElementById(fid).value.toLowerCase();
+  document.querySelectorAll('#'+tid+' tbody tr').forEach(r=>{
+    r.style.display=r.textContent.toLowerCase().includes(q)?'':'none';
+  });
+}
+function switchTab(name,btn){
+  document.querySelectorAll('.tab-panel').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
+  document.getElementById('tab-'+name).classList.add('active');
+  btn.classList.add('active');
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Stats + tables
+// ─────────────────────────────────────────────────────────────────────────────
+function updateStatBar(d){
+  document.getElementById('s-total').textContent  = Number(d.total).toLocaleString();
+  document.getElementById('s-10g').textContent    = Number(d.links_10g).toLocaleString();
+  document.getElementById('s-down').textContent   = Number(d.down).toLocaleString();
+  document.getElementById('s-cir').textContent    = d.avg_cir+'%';
+  document.getElementById('s-file').textContent   = d.filename||'';
+  document.getElementById('s-updated').textContent= d.last_loaded||'—';
+  document.getElementById('badge-10g').textContent = d.links_10g;
+  document.getElementById('badge-down').textContent= d.down;
+}
+
+async function loadAll(){
+  const [meta, r10g, rdown] = await Promise.all([
+    fetch('/api/meta').then(r=>r.json()),
+    fetch('/api/optimum_10g').then(r=>r.json()),
+    fetch('/api/down_links').then(r=>r.json()),
+  ]);
+
+  updateStatBar(meta);
+  render10g(r10g);
+  renderDown(rdown);
+}
+
+function render10g(rows){
+  document.getElementById('body-10g').innerHTML = rows.map((row,i)=>{
+    const aip=ipFromEnd(row['A End']), zip=ipFromEnd(row['Z End']);
+    const cir=row['CIR Utilization Ratio(%)'||0]||0;
+    const bw =row['Bandwidth Utilization Ratio(%)'||0]||0;
+    return `<tr>
+      <td style="color:var(--muted)">${i+1}</td>
+      <td><div class="cell-name" title="${row['Name']}">${row['Name']}</div></td>
+      <td><div class="cell-ip">${aip}</div></td>
+      <td><div class="cell-ip">${zip}</div></td>
+      <td>${cirBar(cir)}</td>
+      <td>${cirBar(bw)}</td>
+      <td style="color:var(--muted);white-space:nowrap;font-size:11px">${(row['Update Time']||'').trim()}</td>
+    </tr>`;
+  }).join('') || '<tr><td colspan="7" class="loading">No 10GE data</td></tr>';
+}
+
+function renderDown(rows){
+  document.getElementById('body-down').innerHTML = rows.map((row,i)=>{
+    const alarm=(row['Alarm Status']||'').trim().toLowerCase();
+    const rc=alarm.includes('critical')?'row-critical':'row-warning';
+    const bc=alarm.includes('critical')?'critical':'warning';
+    const bl=alarm.includes('critical')?'CRITICAL':'WARNING';
+    const aip=ipFromEnd(row['A End']), zip=ipFromEnd(row['Z End']);
+    const cir=row['CIR Utilization Ratio(%)'||0]||0;
+    const bw=(row['Bandwidth']||'').trim();
+    return `<tr class="${rc}">
+      <td style="color:var(--muted)">${i+1}</td>
+      <td><div class="cell-name" title="${row['Name']}">${row['Name']}</div></td>
+      <td>${bwChip(bw)}</td>
+      <td><span class="alarm-badge ${bc}">${bl}</span></td>
+      <td><div class="cell-ip">${aip}</div></td>
+      <td><div class="cell-ip">${zip}</div></td>
+      <td>${cirBar(cir)}</td>
+      <td style="color:var(--muted);white-space:nowrap;font-size:11px">${(row['Update Time']||'').trim()}</td>
+    </tr>`;
+  }).join('') || '<tr><td colspan="8" class="loading">No alarms — all links healthy ✅</td></tr>';
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Path Finder
+// ─────────────────────────────────────────────────────────────────────────────
+function buildPathCards(paths, label, accentColor){
+  if(!paths.length) return `<div style="color:var(--muted);font-family:var(--mono);font-size:12px;padding:12px 0;">No paths found.</div>`;
+  let html = `<div style="color:var(--muted);font-family:var(--mono);font-size:11px;text-transform:uppercase;letter-spacing:1px;margin-bottom:10px;">
+    <span style="color:${accentColor};font-weight:700;">${label}</span>
+    &nbsp;·&nbsp; ${paths.length} path(s) — min hops · max 10GE · min CIR</div>`;
+  paths.forEach((path, idx)=>{
+    const isBest = idx===0;
+    let hopHtml = '';
+    for(let i=0;i<path.nodes.length;i++){
+      hopHtml+=`<div class="hop-node"><span class="hop-ip">${path.nodes[i]}</span></div>`;
+      if(i<path.hops.length){
+        const h=path.hops[i];
+        const lc=h.is_10g?'is-10g':'is-ge';
+        hopHtml+=`<div class="hop-connector">
+          <div class="hop-line ${lc}"></div>
+          <span class="hop-bw-label ${lc}">${h.bandwidth}</span>
+          <span class="hop-cir-label">CIR:${h.cir}%</span></div>`;
+      }
+    }
+    const tenGCount = path.count_10g || 0;
+    const allTenG   = tenGCount === path.hop_count;
+    const cc        = cirClass(path.avg_cir);
+    const cbadge    = `bcir${cc==='low'?'':' '+cc}`;
+    html+=`<div class="path-card${isBest?' best':''}">
+      <div class="path-header">
+        <div class="path-num">${idx+1}</div>
+        <span style="font-family:var(--mono);font-size:13px;font-weight:600">${path.hop_count} hop${path.hop_count!==1?'s':''}</span>
+        <div class="path-meta">
+          ${isBest?'<span class="badge best-badge">★ OPTIMAL</span>':''}
+          <span class="badge ${allTenG?'b10g':'bge'}">${allTenG?'ALL 10GE':'MIXED'}</span>
+          <span class="badge b10g">${tenGCount} × 10GE</span>
+          ${tenGCount < path.hop_count ? `<span class="badge bge">${path.hop_count - tenGCount} × GE</span>` : ''}
+          <span class="badge ${cbadge}">Avg CIR ${path.avg_cir}%</span>
+        </div>
+      </div>
+      <div class="hop-flow"><div class="hop-list">${hopHtml}</div></div>
+    </div>`;
+  });
+  return html;
+}
+
+async function findPath(){
+  const src=document.getElementById('src').value.trim();
+  const tgt=document.getElementById('tgt').value.trim();
+  const errEl=document.getElementById('error-msg');
+  const resEl=document.getElementById('results');
+  errEl.style.display='none';
+  resEl.innerHTML='<div class="loading"><span class="spinner"></span>Searching network graph…</div>';
+  const fd=new FormData(); fd.append('source',src); fd.append('target',tgt);
+  const data=await fetch('/find_path',{method:'POST',body:fd}).then(r=>r.json());
+  resEl.innerHTML='';
+  if(data.error){errEl.textContent='⚠ '+data.error;errEl.style.display='block';return;}
+
+  const azPaths = data.az_paths||[];
+  const zaPaths = data.za_paths||[];
+  if(!azPaths.length && !zaPaths.length){errEl.textContent='⚠ No paths found';errEl.style.display='block';return;}
+
+  resEl.innerHTML =
+    `<div style="margin-bottom:28px">${buildPathCards(azPaths, '▶ A → Z  ('+src+' → '+tgt+')', 'var(--accent)')}</div>` +
+    `<div style="border-top:1px solid var(--border);padding-top:24px">${buildPathCards(zaPaths, '◀ Z → A  ('+tgt+' → '+src+')', 'var(--amber)')}</div>`;
+}
+
+function clearSearch(){
+  document.getElementById('src').value='';
+  document.getElementById('tgt').value='';
+  document.getElementById('results').innerHTML='';
+  document.getElementById('error-msg').style.display='none';
+  document.getElementById('src').focus();
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Upload Modal
+// ─────────────────────────────────────────────────────────────────────────────
+let selectedFile = null;
+
+function openUploadModal(){
+  document.getElementById('upload-modal').classList.add('open');
+}
+function closeUploadModal(){
+  document.getElementById('upload-modal').classList.remove('open');
+  clearFile();
+  document.getElementById('upload-progress').classList.remove('show');
+}
+function handleOverlayClick(e){
+  if(e.target===document.getElementById('upload-modal')) closeUploadModal();
+}
+
+function handleFileSelect(e){
+  const f=e.target.files[0];
+  if(f) setFile(f);
+}
+function handleDragOver(e){
+  e.preventDefault();
+  document.getElementById('drop-zone').classList.add('dragover');
+}
+function handleDragLeave(){
+  document.getElementById('drop-zone').classList.remove('dragover');
+}
+function handleDrop(e){
+  e.preventDefault();
+  document.getElementById('drop-zone').classList.remove('dragover');
+  const f=e.dataTransfer.files[0];
+  if(f) setFile(f);
+}
+function setFile(f){
+  selectedFile=f;
+  const fi=document.getElementById('file-info');
+  document.getElementById('file-name').textContent=f.name;
+  document.getElementById('file-size').textContent=formatBytes(f.size);
+  fi.classList.add('show');
+  document.getElementById('btn-confirm').disabled=false;
+}
+function clearFile(){
+  selectedFile=null;
+  document.getElementById('file-info').classList.remove('show');
+  document.getElementById('file-input').value='';
+  document.getElementById('btn-confirm').disabled=true;
+}
+function formatBytes(b){
+  if(b<1024) return b+'B';
+  if(b<1024*1024) return (b/1024).toFixed(1)+'KB';
+  return (b/1048576).toFixed(1)+'MB';
+}
+
+async function doUpload(){
+  if(!selectedFile) return;
+  const prog=document.getElementById('upload-progress');
+  const fill=document.getElementById('prog-fill');
+  const label=document.getElementById('prog-label');
+  const btn=document.getElementById('btn-confirm');
+
+  prog.classList.add('show');
+  btn.disabled=true;
+  label.textContent='Uploading file…';
+  fill.style.width='20%';
+
+  const fd=new FormData();
+  fd.append('file', selectedFile);
+
+  try{
+    fill.style.width='55%';
+    label.textContent='Processing data…';
+    const resp=await fetch('/upload',{method:'POST',body:fd});
+    fill.style.width='85%';
+    label.textContent='Rebuilding graph…';
+    const data=await resp.json();
+    fill.style.width='100%';
+
+    setTimeout(async ()=>{
+      closeUploadModal();
+      if(data.success){
+        showToast('success','✅','Data refreshed successfully',
+          `${Number(data.total).toLocaleString()} links loaded from ${data.filename}`);
+        updateStatBar(data);
+        reloadNodes();
+        // Reload tables
+        const [r10g, rdown]=await Promise.all([
+          fetch('/api/optimum_10g').then(r=>r.json()),
+          fetch('/api/down_links').then(r=>r.json()),
+        ]);
+        render10g(r10g);
+        renderDown(rdown);
+      } else {
+        showToast('error','❌','Upload failed', data.error||'Unknown error');
+      }
+    }, 400);
+
+  } catch(err){
+    fill.style.width='100%';
+    fill.style.background='var(--red)';
+    label.textContent='Error: '+err.message;
+    btn.disabled=false;
+    showToast('error','❌','Upload failed', err.message);
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Toast
+// ─────────────────────────────────────────────────────────────────────────────
+let toastTimer=null;
+function showToast(type, icon, title, sub){
+  const t=document.getElementById('toast');
+  document.getElementById('toast-icon').textContent=icon;
+  document.getElementById('toast-title').textContent=title;
+  document.getElementById('toast-sub').textContent=sub;
+  t.className='toast '+type;
+  void t.offsetWidth;
+  t.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer=setTimeout(()=>t.classList.remove('show'), 4500);
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// IP Autocomplete
+// ─────────────────────────────────────────────────────────────────────────────
+let allNodes = [];
+const PREFIX = '10.121.';
+
+async function loadNodes(){
+  allNodes = await fetch('/api/nodes').then(r=>r.json());
+}
+
+function setupAC(inputId, dropId){
+  const inp = document.getElementById(inputId);
+  const drop = document.getElementById(dropId);
+  let activeIdx = -1;
+
+  inp.addEventListener('input', ()=>{
+    const raw = inp.value.trim();
+    // Build the search term: if user typed full IP use as-is, else prefix with 10.121.
+    const search = raw.startsWith('10.') ? raw : PREFIX + raw;
+    const matches = raw === '' ? [] : allNodes.filter(n => n.startsWith(search)).slice(0, 60);
+    activeIdx = -1;
+    if(matches.length === 0){ drop.classList.remove('open'); drop.innerHTML=''; return; }
+    drop.innerHTML = matches.map((ip,i)=>{
+      const suffix = ip.slice(PREFIX.length);
+      const typed  = raw.startsWith('10.') ? raw : raw;
+      const hi     = raw.startsWith('10.')
+        ? ip.replace(raw, `<mark>${raw}</mark>`)
+        : PREFIX + suffix.replace(raw, `<mark>${raw}</mark>`);
+      return `<div class="ac-item" data-ip="${ip}" data-idx="${i}">${hi}</div>`;
+    }).join('');
+    drop.classList.add('open');
+    drop.querySelectorAll('.ac-item').forEach(el=>{
+      el.addEventListener('mousedown', e=>{ e.preventDefault(); selectIP(inp, drop, el.dataset.ip); });
+    });
+  });
+
+  inp.addEventListener('keydown', e=>{
+    const items = drop.querySelectorAll('.ac-item');
+    if(!drop.classList.contains('open') || items.length===0) { if(e.key==='Enter') findPath(); return; }
+    if(e.key==='ArrowDown'){ e.preventDefault(); activeIdx=Math.min(activeIdx+1,items.length-1); highlight(items,activeIdx); }
+    else if(e.key==='ArrowUp'){ e.preventDefault(); activeIdx=Math.max(activeIdx-1,0); highlight(items,activeIdx); }
+    else if(e.key==='Enter'){ e.preventDefault(); if(activeIdx>=0) selectIP(inp,drop,items[activeIdx].dataset.ip); else findPath(); }
+    else if(e.key==='Escape'){ drop.classList.remove('open'); }
+  });
+
+  document.addEventListener('click', e=>{ if(!inp.contains(e.target)&&!drop.contains(e.target)) drop.classList.remove('open'); });
+}
+
+function highlight(items, idx){
+  items.forEach((el,i)=>el.classList.toggle('active', i===idx));
+  if(items[idx]) items[idx].scrollIntoView({block:'nearest'});
+}
+function selectIP(inp, drop, ip){
+  inp.value = ip;
+  drop.classList.remove('open');
+  drop.innerHTML = '';
+}
+
+// Reload node list after data refresh
+function reloadNodes(){ loadNodes(); }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Init
+// ─────────────────────────────────────────────────────────────────────────────
+document.addEventListener('DOMContentLoaded', ()=>{
+  setupAC('src','ac-src');
+  setupAC('tgt','ac-tgt');
+  loadNodes();
+  loadAll();
+});
+</script>
+</body>
+</html>
