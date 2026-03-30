@@ -203,6 +203,10 @@ def find_path():
 def get_nodes():
     return jsonify(sorted(G.nodes()))
 
+@app.route('/api/node_names')
+def get_node_names():
+    return jsonify(ip_name_map)
+
 @app.route('/api/down_links')
 def down_links():
     rows = df_down[['Name','Bandwidth','Alarm Status',
@@ -218,4 +222,4 @@ def optimum_10g():
     return jsonify(rows)
 
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=5000, debug=True)
+    app.run(host='0.0.0.0', port=5001, debug=True)

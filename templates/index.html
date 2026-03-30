@@ -165,8 +165,8 @@ header h1 span{color:var(--accent)}
 
 /* ── Path Finder ── */
 .finder-wrap{max-width:1000px;margin:36px auto;padding:0 24px}
-.search-card{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:26px 28px;margin-bottom:28px;position:relative;overflow:hidden}
-.search-card::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,var(--accent),var(--accent2))}
+.search-card{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:26px 28px 42px;margin-bottom:28px;position:relative}
+.search-card::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;background:linear-gradient(90deg,var(--accent),var(--accent2));border-radius:16px 16px 0 0}
 .search-card h2{font-size:.9rem;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:1.5px;font-family:var(--mono);margin-bottom:20px}
 .input-row{display:flex;gap:14px;align-items:flex-end;flex-wrap:wrap}
 .input-group{flex:1;min-width:160px;display:flex;flex-direction:column;gap:7px}
@@ -207,6 +207,7 @@ header h1 span{color:var(--accent)}
 .hop-bw-label.is-ge{color:var(--muted)}
 .hop-cir-label{font-family:var(--mono);font-size:11px;color:var(--muted);font-weight:600}
 .hop-name{font-family:var(--sans);font-size:11px;color:var(--accent);font-weight:700;margin-top:4px;max-width:110px;text-align:center;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.ip-node-name{font-family:var(--sans);font-size:13px;font-weight:700;color:var(--accent);position:absolute;bottom:-22px;left:2px;white-space:nowrap;}
 
 /* ── Table Panel ── */
 .table-wrap{padding:24px 30px}
@@ -292,7 +293,7 @@ tbody tr.row-warning{background:rgba(217,119,6,.05)}
       </svg>
       Upload &amp; Refresh Data
     </button>
-    <div class="header-badge">BSNL Gujarat NOC</div>
+    <div class="header-badge">BSNL Gujarat CPAN NOC</div>
   </div>
 </header>
 
@@ -392,14 +393,18 @@ tbody tr.row-warning{background:rgba(217,119,6,.05)}
           <label>Source IP</label>
           <input type="text" id="src" placeholder="e.g. 24.167" autocomplete="off">
           <div class="ac-dropdown" id="ac-src"></div>
+          <span class="ip-node-name" id="src-name"></span>
         </div>
         <div class="ac-wrap">
           <label>Target IP</label>
           <input type="text" id="tgt" placeholder="e.g. 24.130" autocomplete="off">
           <div class="ac-dropdown" id="ac-tgt"></div>
+          <span class="ip-node-name" id="tgt-name"></span>
         </div>
-        <button class="btn-find" onclick="findPath()">▶ Find Paths</button>
-        <button class="btn-clear" id="btn-clear" onclick="clearSearch()">✕ Clear</button>
+        <div style="display:flex;gap:10px;align-self:flex-end">
+          <button class="btn-find" onclick="findPath()">▶ Find Paths</button>
+          <button class="btn-clear" id="btn-clear" onclick="clearSearch()">✕ Clear</button>
+        </div>
       </div>
     </div>
     <div id="error-msg"></div>
@@ -608,16 +613,25 @@ async function findPath(){
   const azPaths = data.az_paths||[];
   const zaPaths = data.za_paths||[];
   const names   = data.names||{};
+
+  // Show place names in input boxes
+  document.getElementById('src-name').textContent = names[src] || '';
+  document.getElementById('tgt-name').textContent = names[tgt] || '';
   if(!azPaths.length && !zaPaths.length){errEl.textContent='⚠ No paths found';errEl.style.display='block';return;}
 
+  const srcLabel = names[src] ? `${src} (${names[src]})` : src;
+  const tgtLabel = names[tgt] ? `${tgt} (${names[tgt]})` : tgt;
+
   resEl.innerHTML =
-    `<div style="margin-bottom:28px">${buildPathCards(azPaths, '▶ A → Z  ('+src+' → '+tgt+')', 'var(--accent)', names)}</div>` +
-    `<div style="border-top:1px solid var(--border);padding-top:24px">${buildPathCards(zaPaths, '◀ Z → A  ('+tgt+' → '+src+')', 'var(--amber)', names)}</div>`;
+    `<div style="margin-bottom:28px">${buildPathCards(azPaths, '▶ A → Z  &nbsp; '+srcLabel+' → '+tgtLabel, 'var(--accent)', names)}</div>` +
+    `<div style="border-top:1px solid var(--border);padding-top:24px">${buildPathCards(zaPaths, '◀ Z → A  &nbsp; '+tgtLabel+' → '+srcLabel, 'var(--amber)', names)}</div>`;
 }
 
 function clearSearch(){
   document.getElementById('src').value='';
   document.getElementById('tgt').value='';
+  document.getElementById('src-name').textContent='';
+  document.getElementById('tgt-name').textContent='';
   document.getElementById('results').innerHTML='';
   document.getElementById('error-msg').style.display='none';
   document.getElementById('src').focus();
@@ -749,10 +763,16 @@ function showToast(type, icon, title, sub){
 // IP Autocomplete
 // ─────────────────────────────────────────────────────────────────────────────
 let allNodes = [];
+let ipNameCache = {};
 const PREFIX = '10.121.';
 
 async function loadNodes(){
-  allNodes = await fetch('/api/nodes').then(r=>r.json());
+  const [nodes, meta] = await Promise.all([
+    fetch('/api/nodes').then(r=>r.json()),
+    fetch('/api/node_names').then(r=>r.json()),
+  ]);
+  allNodes = nodes;
+  ipNameCache = meta;
 }
 
 function setupAC(inputId, dropId){
@@ -801,6 +821,8 @@ function selectIP(inp, drop, ip){
   inp.value = ip;
   drop.classList.remove('open');
   drop.innerHTML = '';
+  const nameEl = document.getElementById(inp.id + '-name');
+  if(nameEl) nameEl.textContent = ipNameCache[ip] || '';
 }
 
 // Reload node list after data refresh
