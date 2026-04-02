@@ -12,6 +12,7 @@ df_raw = None
 df_down = None
 df_10g = None
 G = nx.Graph()
+G10 = nx.Graph()   # 10GE-only graph for guaranteed all-10GE path search
 ip_name_map = {}   # IP → human-readable node name
 last_loaded = None
 loaded_filename = "links.csv"
@@ -23,7 +24,7 @@ def extract_node_name(endpoint):
 
 def clean_and_rebuild(df):
     """Clean dataframe and rebuild all derived data + graph."""
-    global df_raw, df_down, df_10g, G, ip_name_map
+    global df_raw, df_down, df_10g, G, G10, ip_name_map
 
     for col in df.columns:
         if df[col].dtype == object:
@@ -57,6 +58,7 @@ def clean_and_rebuild(df):
             ip_name_map[z_ip] = extract_node_name(row['Z End'])
 
     G = nx.Graph()
+    G10 = nx.Graph()
     for _, row in data.iterrows():
         a, z = row['A IP'], row['Z IP']
         bw  = row['Bandwidth']
@@ -64,6 +66,10 @@ def clean_and_rebuild(df):
         # Prefer 10GE over GE when multiple links exist between same nodes
         if not G.has_edge(a, z) or (bw == '10GE' and G[a][z].get('bandwidth') != '10GE'):
             G.add_edge(a, z, bandwidth=bw, cir=cir)
+        # 10GE-only graph for guaranteed all-10GE path search
+        if bw == '10GE':
+            if not G10.has_edge(a, z) or cir < G10[a][z].get('cir', 999):
+                G10.add_edge(a, z, bandwidth='10GE', cir=cir)
 
 # ── Initial load from disk ─────────────────────────────────────────────────────
 def load_from_disk():
@@ -182,18 +188,39 @@ def find_path():
                      / (len(p) - 1)) if len(p) > 1 else 0
         return (-count_10g, len(p), avg_cir)
 
-    az_paths = sorted(
-        nx.all_simple_paths(G, source, target, cutoff=10),
-        key=path_sort_key
-    )[:10]
+    # Step 1: find best all-10GE paths via 10GE-only graph (no cutoff limit)
+    # Sort by fewest hops then lowest CIR — NOT by count_10g (all are 10GE here)
+    def g10_sort_key(p):
+        avg_cir = (sum(G10[p[i]][p[i+1]].get('cir', 0) for i in range(len(p)-1))
+                   / (len(p) - 1)) if len(p) > 1 else 0
+        return (len(p), avg_cir)
+
+    all10g_paths = []
+    if source in G10 and target in G10 and nx.has_path(G10, source, target):
+        try:
+            all10g_paths = sorted(
+                nx.all_simple_paths(G10, source, target, cutoff=20),
+                key=g10_sort_key
+            )[:3]
+        except Exception:
+            pass
+
+    # Step 2: normal mixed-bandwidth search within cutoff=10
+    seen = {tuple(p) for p in all10g_paths}
+    normal_paths = []
+    for p in sorted(nx.all_simple_paths(G, source, target, cutoff=10), key=path_sort_key):
+        if tuple(p) not in seen:
+            normal_paths.append(p)
+            seen.add(tuple(p))
+        if len(normal_paths) >= (10 - len(all10g_paths)):
+            break
+
+    # Merge: all-10GE paths first, then remaining slots filled from normal search
+    az_paths = all10g_paths + normal_paths
     za_paths = [list(reversed(p)) for p in az_paths]
 
     az_results = build_results(az_paths, 'A→Z')
     za_results = build_results(za_paths, 'Z→A')
-
-    sort_key = lambda x: (-x['count_10g'], x['hop_count'], x['avg_cir'])
-    az_results.sort(key=sort_key)
-    za_results.sort(key=sort_key)
 
     return jsonify({
         'az_paths': az_results,

@@ -17,6 +17,7 @@ A web-based network path finder and link monitoring tool built for **BSNL Gujara
   - [2. Graph Construction](#2-graph-construction)
   - [3. Path Finding Algorithm](#3-path-finding-algorithm)
   - [4. Path Optimisation Logic](#4-path-optimisation-logic)
+  - [4a. Dual-Graph Strategy for Guaranteed All-10GE Paths](#4a-dual-graph-strategy-for-guaranteed-all-10ge-paths)
   - [5. A→Z and Z→A Bidirectional Display](#5-az-and-za-bidirectional-display)
   - [6. IP Autocomplete](#6-ip-autocomplete)
   - [7. Live Data Upload & Refresh](#7-live-data-upload--refresh)
@@ -34,7 +35,7 @@ A web-based network path finder and link monitoring tool built for **BSNL Gujara
 |---|---|
 | **Path Finder** | Find all simple paths between any two router IPs with up to 10 hops |
 | **Bidirectional Paths** | Shows both A→Z and Z→A paths side by side |
-| **Smart Optimisation** | Paths ranked by: fewest hops → max 10GE links → lowest avg CIR |
+| **Smart Optimisation** | Paths ranked by: max 10GE links → fewest hops → lowest avg CIR. Guaranteed all-10GE paths always surfaced first via dedicated 10GE-only graph search |
 | **Per-hop Details** | Every hop shows bandwidth type (10GE/GE) and CIR utilisation % |
 | **IP Autocomplete** | Type last two octets (e.g. `24.167`) and matching IPs populate instantly |
 | **Live Upload** | Upload new CSV/Excel data without restarting the server |
@@ -121,7 +122,7 @@ pip install -r requirements.txt
 python server.py
 ```
 
-Open your browser and go to: **http://127.0.0.1:5000**
+Open your browser and go to: **http://127.0.0.1:5001**
 
 The server automatically loads `links.csv` from the project directory on startup.
 
@@ -177,18 +178,37 @@ After cleaning, three derived DataFrames are built:
 
 **Library:** NetworkX `nx.Graph()` (undirected graph)
 
-After cleaning, the network topology is built as a graph in memory:
+After cleaning, **two graphs** are built in memory — a full mixed-bandwidth graph and a 10GE-only graph:
 
 ```python
-data['A IP'] = data['A End'].str.split('_').str[0]   # Extract IP from "10.121.x.x_InterfaceName"
-data['Z IP'] = data['Z End'].str.split('_').str[0]
-
-G = nx.Graph()
-for _, row in data.iterrows():
-    G.add_edge(row['A IP'], row['Z IP'],
-               bandwidth=row['Bandwidth'],
-               cir=row['CIR Utilization Ratio(%)'])
+G   = nx.Graph()   # All healthy links (10GE + GE)
+G10 = nx.Graph()   # 10GE-only links — used for guaranteed all-10GE path search
 ```
+
+**Key design decision — 10GE wins when multiple links exist between the same pair of nodes:**
+
+```python
+for _, row in data.iterrows():
+    a, z = row['A IP'], row['Z IP']
+    bw, cir = row['Bandwidth'], row['CIR Utilization Ratio(%)']
+    # Prefer 10GE over GE when multiple links exist between same nodes
+    if not G.has_edge(a, z) or (bw == '10GE' and G[a][z].get('bandwidth') != '10GE'):
+        G.add_edge(a, z, bandwidth=bw, cir=cir)
+    # G10: only 10GE edges, keep lowest CIR if duplicates
+    if bw == '10GE':
+        if not G10.has_edge(a, z) or cir < G10[a][z].get('cir', 999):
+            G10.add_edge(a, z, bandwidth='10GE', cir=cir)
+```
+
+**Why this matters:** `nx.Graph()` only stores one edge per node pair. Without this logic, a GE link added after a 10GE link between the same nodes would silently overwrite the 10GE link, making a direct 10GE connection invisible in path finding.
+
+**Alarmed links are excluded from both graphs:**
+
+```python
+df_healthy = df[~df['Alarm Status'].str.lower().str.contains('critical|warning', na=False)]
+```
+
+Only healthy links are added to `G` and `G10`. The IP-to-name mapping is still built from ALL links so autocomplete and hop labels remain complete even for alarmed nodes.
 
 **What this means:**
 - Each unique IP address becomes a **node** in the graph
@@ -202,38 +222,55 @@ for _, row in data.iterrows():
 10.121.17.70 ──[GE,   CIR:12%]── 10.121.24.130
 ```
 
-This becomes a graph where path finding can traverse any connected route.
-
 ---
 
 ### 3. Path Finding Algorithm
 
 **Route:** `POST /find_path`
 
-**Algorithm used:** `nx.all_simple_paths(G, source, target, cutoff=10)`
+The path finding uses a **dual-graph strategy** — two searches run in parallel and their results are merged:
 
-NetworkX's `all_simple_paths` uses **Depth-First Search (DFS)** to enumerate all simple paths (no repeated nodes) between two IPs, up to a maximum of 10 hops (`cutoff=10`).
-
+**Step 1 — All-10GE guaranteed search (G10 graph, cutoff=20):**
 ```python
-az_paths = sorted(
-    nx.all_simple_paths(G, source, target, cutoff=10),
-    key=path_sort_key
-)[:10]
+# Sort G10 paths by fewest hops, then lowest CIR (all are already 10GE)
+def g10_sort_key(p):
+    avg_cir = sum(G10[p[i]][p[i+1]].get('cir', 0) for i in range(len(p)-1)) / (len(p)-1)
+    return (len(p), avg_cir)
+
+all10g_paths = sorted(
+    nx.all_simple_paths(G10, source, target, cutoff=20),
+    key=g10_sort_key
+)[:3]   # Top 3 shortest all-10GE paths
 ```
+
+**Step 2 — Mixed-bandwidth search (G graph, cutoff=10):**
+```python
+normal_paths = []
+for p in sorted(nx.all_simple_paths(G, source, target, cutoff=10), key=path_sort_key):
+    if tuple(p) not in seen:   # deduplicate against all10g_paths
+        normal_paths.append(p)
+    if len(normal_paths) >= (10 - len(all10g_paths)):
+        break
+```
+
+**Step 3 — Merge:**
+```python
+az_paths = all10g_paths + normal_paths   # All-10GE first, then fill remaining slots
+```
+
+**Why two separate searches?**
+
+The all-10GE path between two nodes may be 15–20 hops long. With a single `cutoff=10` search, it would never be found. By running a separate search on `G10` (which only contains 10GE edges), we guarantee the shortest all-10GE route is always surfaced — regardless of hop count. The normal search then fills remaining result slots with the best mixed paths within 10 hops.
 
 **Why `sorted()` instead of direct slice?**
 
-DFS does not guarantee returning shortest paths first. If we just did `[:10]` directly on the generator, we might miss the direct 1-hop link between two directly connected nodes (it could be found late in the DFS traversal). By fully evaluating the generator and then sorting, we ensure the best paths always appear — even if DFS found them late.
-
-**Why `cutoff=10`?**
-
-The cutoff limits the maximum path length to 10 hops. This prevents the algorithm from exploring extremely long, impractical paths in a dense network, which would be computationally expensive and operationally irrelevant.
+DFS does not guarantee returning shortest paths first. Fully sorting the generator ensures the best paths always appear — even if DFS found them late in traversal.
 
 ---
 
 ### 4. Path Optimisation Logic
 
-**The core of the tool.** After all simple paths are found, they are ranked using a 3-level sort key:
+**The core of the tool.** The normal mixed-bandwidth search ranks paths using a 3-level sort key:
 
 ```python
 def path_sort_key(p):
@@ -241,26 +278,61 @@ def path_sort_key(p):
                     if G[p[i]][p[i+1]].get('bandwidth') == '10GE')
     avg_cir   = (sum(G[p[i]][p[i+1]].get('cir', 0) for i in range(len(p)-1))
                  / (len(p) - 1)) if len(p) > 1 else 0
-    return (len(p), -count_10g, avg_cir)
+    return (-count_10g, len(p), avg_cir)
 ```
 
 **Priority order:**
 
 | Priority | Criterion | Reason |
 |---|---|---|
-| **1st** | Minimum hops (`len(p)`) | Fewer hops = lower latency, fewer failure points |
-| **2nd** | Maximum 10GE links (`-count_10g`, negated so higher = better) | 10GE links have 10x more capacity than GE links |
+| **1st** | Maximum 10GE links (`-count_10g`, negated so higher = better) | 10GE links have 10x more capacity than GE links — all-10GE path is always best |
+| **2nd** | Minimum hops (`len(p)`) | Fewer hops = lower latency, fewer failure points |
 | **3rd** | Minimum average CIR utilisation (`avg_cir`) | Lower CIR = less congested path |
 
 **Example ranking:**
 
 ```
-Path A: 3 hops, 3×10GE, avg CIR 15%  ← OPTIMAL (fewest hops + all 10G + low CIR)
-Path B: 3 hops, 2×10GE, avg CIR 10%  ← 2nd (same hops, fewer 10G links)
-Path C: 4 hops, 4×10GE, avg CIR 5%   ← 3rd (more hops, even if all 10G)
+Path A: 4 hops, 4×10GE, avg CIR 25%  ← OPTIMAL (all 10GE, then fewest hops)
+Path B: 3 hops, 2×10GE, avg CIR 10%  ← 2nd (fewer hops but fewer 10GE links)
+Path C: 3 hops, 2×10GE, avg CIR 20%  ← 3rd (same as B but higher CIR)
 ```
 
+**Note:** All-10GE paths from the G10 dedicated search are always placed before normal mixed paths in the final result, regardless of hop count. The normal sort key is only applied within the mixed-bandwidth portion.
+
 The results are capped at **10 paths** to keep the UI readable and the response fast.
+
+---
+
+### 4a. Dual-Graph Strategy for Guaranteed All-10GE Paths
+
+**Problem:** A path that uses only 10GE links may require 15–20 hops between two distant nodes. The normal `cutoff=10` search would never discover this path, even though it is operationally superior (no GE bottlenecks, maximum capacity).
+
+**Solution:** A second graph `G10` is built containing only 10GE edges. A separate path search runs on `G10` with a higher cutoff (20 hops), guaranteeing the shortest all-10GE route is always found.
+
+```
+┌─────────────────────────────────────────────────────────┐
+│                    Path Finding Flow                     │
+│                                                         │
+│  G10 (10GE only, cutoff=20)                            │
+│  ├─ Shortest all-10GE path → #1 result (e.g. 1 hop)   │
+│  ├─ 2nd shortest all-10GE  → #2 result (e.g. 5 hops)  │
+│  └─ 3rd shortest all-10GE  → #3 result (e.g. 7 hops)  │
+│                                                         │
+│  G (all links, cutoff=10)                              │
+│  ├─ Best mixed path #1     → #4 result                 │
+│  ├─ Best mixed path #2     → #5 result                 │
+│  └─ ...up to 7 more        → #6–#10 results            │
+└─────────────────────────────────────────────────────────┘
+```
+
+**G10 sort key (shortest hops first, since all links are already 10GE):**
+```python
+def g10_sort_key(p):
+    avg_cir = sum(G10[p[i]][p[i+1]].get('cir', 0) for ...) / (len(p)-1)
+    return (len(p), avg_cir)   # min hops → min CIR (NOT count_10g — all are 10GE)
+```
+
+Using `-count_10g` in the G10 sort key would be wrong — since all paths are 10GE, longer paths would always rank higher (more 10GE hops). The dedicated sort key ensures the shortest all-10GE path wins.
 
 ---
 
@@ -446,7 +518,7 @@ target=10.121.24.130
 
 ## Screenshots
 
-> Run the application and open `http://127.0.0.1:5000` to see the live UI.
+> Run the application and open `http://127.0.0.1:5001` to see the live UI.
 
 ---
 
