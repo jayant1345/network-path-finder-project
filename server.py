@@ -58,9 +58,12 @@ def clean_and_rebuild(df):
 
     G = nx.Graph()
     for _, row in data.iterrows():
-        G.add_edge(row['A IP'], row['Z IP'],
-                   bandwidth=row['Bandwidth'],
-                   cir=row['CIR Utilization Ratio(%)'])
+        a, z = row['A IP'], row['Z IP']
+        bw  = row['Bandwidth']
+        cir = row['CIR Utilization Ratio(%)']
+        # Prefer 10GE over GE when multiple links exist between same nodes
+        if not G.has_edge(a, z) or (bw == '10GE' and G[a][z].get('bandwidth') != '10GE'):
+            G.add_edge(a, z, bandwidth=bw, cir=cir)
 
 # ── Initial load from disk ─────────────────────────────────────────────────────
 def load_from_disk():
@@ -171,13 +174,13 @@ def find_path():
                         'direction': direction})
         return out
 
-    # Sort candidates: fewest hops → max 10G links → lowest avg CIR
+    # Sort candidates: max 10G links → fewest hops → lowest avg CIR
     def path_sort_key(p):
         count_10g = sum(1 for i in range(len(p)-1)
                         if G[p[i]][p[i+1]].get('bandwidth') == '10GE')
         avg_cir   = (sum(G[p[i]][p[i+1]].get('cir', 0) for i in range(len(p)-1))
                      / (len(p) - 1)) if len(p) > 1 else 0
-        return (len(p), -count_10g, avg_cir)
+        return (-count_10g, len(p), avg_cir)
 
     az_paths = sorted(
         nx.all_simple_paths(G, source, target, cutoff=10),
@@ -188,7 +191,7 @@ def find_path():
     az_results = build_results(az_paths, 'A→Z')
     za_results = build_results(za_paths, 'Z→A')
 
-    sort_key = lambda x: (x['hop_count'], -x['count_10g'], x['avg_cir'])
+    sort_key = lambda x: (-x['count_10g'], x['hop_count'], x['avg_cir'])
     az_results.sort(key=sort_key)
     za_results.sort(key=sort_key)
 
