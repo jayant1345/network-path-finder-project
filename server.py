@@ -40,16 +40,17 @@ def clean_and_rebuild(df):
     df_10g  = df[df['Bandwidth'] == '10GE'].copy()
     df_10g  = df_10g.sort_values('CIR Utilization Ratio(%)', ascending=True)
 
-    # Rebuild graph
-    data = df[['A End', 'Z End', 'Bandwidth', 'CIR Utilization Ratio(%)']].copy()
+    # Rebuild graph — exclude alarmed (down) links so path finder only uses healthy links
+    df_healthy = df[~df['Alarm Status'].str.lower().str.contains('critical|warning', na=False)].copy()
+    data = df_healthy[['A End', 'Z End', 'Bandwidth', 'CIR Utilization Ratio(%)']].copy()
     data['A IP'] = data['A End'].astype(str).str.strip().str.split('_').str[0]
     data['Z IP'] = data['Z End'].astype(str).str.strip().str.split('_').str[0]
 
-    # Build IP → node name mapping
+    # Build IP → node name mapping (from all links so names are always available)
     ip_name_map = {}
-    for _, row in data.iterrows():
-        a_ip = row['A IP']
-        z_ip = row['Z IP']
+    for _, row in df[['A End', 'Z End']].iterrows():
+        a_ip = str(row['A End']).strip().split('_')[0]
+        z_ip = str(row['Z End']).strip().split('_')[0]
         if a_ip not in ip_name_map:
             ip_name_map[a_ip] = extract_node_name(row['A End'])
         if z_ip not in ip_name_map:
