@@ -1,8 +1,14 @@
-from flask import Flask, render_template, request, jsonify
+from flask import Flask, render_template, request, jsonify, send_file
 import pandas as pd
 import networkx as nx
 import os
 import io
+import shutil
+import re
+import time
+import threading
+import uuid
+import zipfile
 from datetime import datetime
 
 app = Flask(__name__)
@@ -252,5 +258,377 @@ def optimum_10g():
                    'A End','Z End','Update Time']].head(300).to_dict('records')
     return jsonify(rows)
 
+# ── Native pickers (runs tkinter on the server machine) ───────────────────────
+_CONFIG_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'report_config.json')
+
+def _load_config():
+    try:
+        import json
+        with open(_CONFIG_FILE) as f:
+            return json.load(f)
+    except Exception:
+        return {}
+
+def _save_config(data):
+    import json
+    cfg = _load_config()
+    cfg.update(data)
+    with open(_CONFIG_FILE, 'w') as f:
+        json.dump(cfg, f, indent=2)
+
+# Load saved paths on startup
+_cfg = _load_config()
+_custom_template_path = _cfg.get('template_path')   # persists across restarts
+_custom_output_dir    = _cfg.get('output_dir')       # custom save folder (None = default reports_output)
+
+@app.route('/report/browse_folder')
+def report_browse_folder():
+    import tkinter as tk
+    from tkinter import filedialog
+    root = tk.Tk()
+    root.withdraw()
+    root.attributes('-topmost', True)
+    folder = filedialog.askdirectory(title="Select folder containing input files")
+    root.destroy()
+    if folder:
+        return jsonify({'folder': folder.replace('/', '\\')})
+    return jsonify({'folder': None})
+
+@app.route('/report/browse_output_folder')
+def report_browse_output_folder():
+    global _custom_output_dir
+    import tkinter as tk
+    from tkinter import filedialog
+    default = _custom_output_dir or os.path.join(os.path.dirname(os.path.abspath(__file__)), 'reports_output')
+    root = tk.Tk()
+    root.withdraw()
+    root.attributes('-topmost', True)
+    folder = filedialog.askdirectory(title="Select folder to save reports", initialdir=default)
+    root.destroy()
+    if folder:
+        folder = folder.replace('/', '\\')
+        _custom_output_dir = folder
+        _save_config({'output_dir': folder})
+        return jsonify({'folder': folder})
+    return jsonify({'folder': None})
+
+@app.route('/report/open_output_folder')
+def report_open_output_folder():
+    folder = _custom_output_dir or os.path.join(os.path.dirname(os.path.abspath(__file__)), 'reports_output')
+    os.makedirs(folder, exist_ok=True)
+    os.startfile(folder)
+    return jsonify({'folder': folder})
+
+@app.route('/report/get_output_folder')
+def report_get_output_folder():
+    default = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'reports_output')
+    folder  = _custom_output_dir or default
+    return jsonify({'folder': folder, 'is_custom': bool(_custom_output_dir)})
+
+@app.route('/report/browse_template')
+def report_browse_template():
+    global _custom_template_path
+    import tkinter as tk
+    from tkinter import filedialog
+    root = tk.Tk()
+    root.withdraw()
+    root.attributes('-topmost', True)
+    path = filedialog.askopenfilename(
+        title="Select CPAN Master Template",
+        filetypes=[("Excel files", "*.xlsx"), ("All files", "*.*")]
+    )
+    root.destroy()
+    if path:
+        path = path.replace('/', '\\')
+        _custom_template_path = path
+        _save_config({'template_path': path})
+        return jsonify({'path': path, 'name': os.path.basename(path)})
+    return jsonify({'path': None})
+
+# ── CPAN Daily Report Generation ──────────────────────────────────────────────
+_REPORT_GREEN_COLOR = "FF00FF00"
+_REPORT_FILE_PATTERNS = {
+    "card_off":   ["CARD OFFLINE"],
+    "device_off": ["DEVICE OFFLINE"],
+    "fan_fail":   ["FAN FAILURE"],
+    "dl_fail":    ["CPAN DL FAIL REPORT", "DL FAIL REPORT"],  # prefix varies by date
+    "dash_down":  ["DASH-DOWN", "DASH_DOWN"],
+}
+_REPORT_SHEET_CONFIG = {
+    "card_off":   {"sheet_name": "CARD-OFF",   "data_start_row": 11,
+                   "paste_col_start": 6,  "paste_col_end": 13,
+                   "input_sheet": "Sheet1", "input_data_start_row": 2,
+                   "input_col_start": 1, "input_col_end": 8},
+    "device_off": {"sheet_name": "DEVICE-OFF", "data_start_row": 11,
+                   "paste_col_start": 6,  "paste_col_end": 13,
+                   "input_sheet": "Sheet1", "input_data_start_row": 2,
+                   "input_col_start": 1, "input_col_end": 8},
+    "fan_fail":   {"sheet_name": "FAN-FAIL",   "data_start_row": 11,
+                   "paste_col_start": 6,  "paste_col_end": 14,
+                   "input_sheet": "Sheet1", "input_data_start_row": 2,
+                   "input_col_start": 1, "input_col_end": 9},
+    "dl_fail":    {"sheet_name": "DL-FAIL",    "data_start_row": 11,
+                   "paste_col_start": 7,  "paste_col_end": 17,
+                   "input_sheet": "Sheet1", "input_data_start_row": 2,
+                   "input_col_start": 1, "input_col_end": 11},
+    # DASH-DOWN: all columns pasted dynamically (paste_col_end/input_col_end = None means all)
+    "dash_down":  {"sheet_name": "DASH-DOWN", "data_start_row": 2,
+                   "paste_col_start": 1,  "paste_col_end": None,
+                   "input_sheet": "Sheet1", "input_data_start_row": 2,
+                   "input_col_start": 1, "input_col_end": None},
+}
+_report_jobs = {}  # job_id -> {status, logs, output_path, error}
+
+def _find_report_template():
+    global _custom_template_path
+    if _custom_template_path and os.path.isfile(_custom_template_path):
+        return _custom_template_path
+    base = os.path.dirname(os.path.abspath(__file__))
+    for f in os.listdir(base):
+        if f.upper().startswith('DAILY_CPAN_REPORTS_MASTER') and f.lower().endswith('.xlsx'):
+            return os.path.join(base, f)
+    return None
+
+def _find_report_input_files(folder, date_str):
+    # date_str arrives as DD-MM-YYYY from the UI
+    # Filenames use inconsistent date formats across dates:
+    #   DD-MM-YYYY  e.g. CARD OFFLINE 05-05-2026.xlsx
+    #   DD.MM.YYYY  e.g. CARD OFFLINE 07.05.2026.xlsx
+    # DASH-DOWN is a CSV, filename varies: DASH-DOWN_DDMMYYYY.csv or DASH_DOWN.csv
+    found = {}
+    try:
+        parts = date_str.split('-')
+        dd, mm, yyyy = parts[0], parts[1], parts[2]
+        yy = yyyy[2:]
+        # All date variants to try when matching filenames
+        date_tokens = [
+            f"{dd}-{mm}-{yyyy}",   # DD-MM-YYYY  (most common)
+            f"{dd}.{mm}.{yyyy}",   # DD.MM.YYYY
+            f"{dd}.{mm}.{yy}",     # DD.MM.YY
+            f"{dd}{mm}{yyyy}",     # DDMMYYYY    (DASH-DOWN compact)
+            f"{dd}{mm}{yy}",       # DDMMYY
+        ]
+
+        all_files = os.listdir(folder)
+        all_xlsx  = [f for f in all_files if f.lower().endswith('.xlsx')]
+        all_csv   = [f for f in all_files if f.lower().endswith('.csv')]
+
+        for key, prefixes in _REPORT_FILE_PATTERNS.items():
+            if key == 'dash_down':
+                # DASH-DOWN is CSV; also accept xlsx; may have no date in name
+                pool = all_csv + [f for f in all_xlsx
+                                  if any(p.upper() in f.upper() for p in prefixes)]
+                # First try: match by prefix + any date token
+                matches = []
+                for tok in date_tokens:
+                    matches = [f for f in pool
+                               if any(f.upper().startswith(p.upper()) for p in prefixes)
+                               and tok in f]
+                    if matches:
+                        break
+                # Fallback: any file starting with a known prefix (no date required)
+                if not matches:
+                    matches = [f for f in pool
+                               if any(f.upper().startswith(p.upper()) for p in prefixes)]
+            else:
+                # Regular xlsx files — try each date token variant
+                matches = []
+                for tok in date_tokens:
+                    candidates = [f for f in all_xlsx if tok in f]
+                    matches = [f for f in candidates
+                               if any(f.upper().startswith(p.upper()) for p in prefixes)]
+                    if matches:
+                        break
+
+            if not matches:
+                continue
+            clean = [f for f in matches if not re.search(r'\s*\(\d+\)', f)]
+            found[key] = os.path.join(folder, clean[0] if clean else matches[0])
+    except Exception:
+        pass
+    return found
+
+def _run_report_job(job_id, file_map, output_path, report_date):
+    import pythoncom
+    pythoncom.CoInitialize()
+    job = _report_jobs[job_id]
+    def log(msg):
+        job['logs'].append(msg)
+    try:
+        from report_gen import generate_report
+        abs_output = os.path.abspath(output_path)
+        pdf_path   = os.path.splitext(abs_output)[0] + '.pdf'
+
+        log("Processing input files with Python...")
+        gen_logs = generate_report(file_map, report_date, abs_output,
+                                   links_df=df_raw)
+        for l in gen_logs:
+            log(l)
+
+        # Export each sheet as a separate PDF, then zip them
+        log("Exporting PDFs (one per report sheet)...")
+        import win32com.client
+        reports_dir = os.path.dirname(abs_output)
+        base_name   = os.path.splitext(os.path.basename(abs_output))[0]
+        zip_path    = os.path.join(reports_dir, base_name + '_PDFs.zip')
+        # Sheet name → PDF label matching existing naming convention
+        _SHEET_PDF_LABEL = {
+            'CARD-OFF-R':   'CARD OFFLINE REPORT',
+            'DEVICE-OFF-R': 'DEVICE OFFLINE REPORT',
+            'FAN-FAIL-R':   'FAN FAIL REPORT',
+            'DL-FAIL-R':    'DL FAIL REPORT',
+            'DASH-DOWN-R':  'DASH DOWN REPORT',
+        }
+        # Date in DD.MM.YYYY format for PDF filename
+        pdf_date = report_date.strftime('%d.%m.%Y')
+        excel = win32com.client.Dispatch("Excel.Application")
+        excel.Visible        = False
+        excel.DisplayAlerts  = False
+        excel.ScreenUpdating = False
+        excel.EnableEvents   = False
+        pdf_files = []
+        try:
+            wb_com = excel.Workbooks.Open(abs_output, UpdateLinks=False)
+            for i in range(1, wb_com.Sheets.Count + 1):
+                sh      = wb_com.Sheets(i)
+                sh_name = sh.Name
+                label   = _SHEET_PDF_LABEL.get(sh_name, sh_name)
+                pdf_out = os.path.join(reports_dir, f"CPAN_{label}_{pdf_date}.pdf")
+                if os.path.exists(pdf_out):
+                    os.remove(pdf_out)
+                # Force landscape + fit-all-columns-on-one-page-wide before export
+                try:
+                    ps = sh.PageSetup
+                    ps.Orientation    = 2   # xlLandscape
+                    ps.PaperSize      = 9   # xlPaperA4
+                    ps.Zoom           = False
+                    ps.FitToPagesWide = 1
+                    ps.FitToPagesTall = 9999
+                except Exception:
+                    try:
+                        sh.PageSetup.Orientation = 2
+                        sh.PageSetup.Zoom = 70
+                    except Exception:
+                        pass
+                sh.ExportAsFixedFormat(0, pdf_out, OpenAfterPublish=False)
+                pdf_files.append(pdf_out)
+                log(f"  PDF: {os.path.basename(pdf_out)}")
+            wb_com.Close(SaveChanges=False)
+        finally:
+            try:
+                excel.ScreenUpdating = True
+                excel.EnableEvents   = True
+                excel.Quit()
+            except Exception:
+                pass
+
+        # Bundle into a single ZIP for easy download
+        if os.path.exists(zip_path):
+            os.remove(zip_path)
+        with zipfile.ZipFile(zip_path, 'w', zipfile.ZIP_DEFLATED) as zf:
+            for p in pdf_files:
+                zf.write(p, os.path.basename(p))
+        log(f"ZIP created: {len(pdf_files)} PDFs bundled.")
+        job['pdf_path'] = zip_path
+
+        log("Done! xlsx and PDF ready for download.")
+        job['status']      = 'done'
+        job['output_path'] = abs_output
+    except Exception as e:
+        import traceback
+        job['status'] = 'error'
+        job['error']  = traceback.format_exc()
+        log(f"ERROR: {str(e)}")
+    finally:
+        pythoncom.CoUninitialize()
+
+@app.route('/report/template_status')
+def report_template_status():
+    # Master template no longer required — report is generated purely in Python
+    return jsonify({'found': True, 'name': 'Python generator (no template needed)', 'path': None})
+
+@app.route('/report/scan', methods=['POST'])
+def report_scan():
+    global _custom_template_path
+    data     = request.json or {}
+    folder   = (data.get('folder') or '').strip()
+    date_str = (data.get('date')   or '').strip()
+    if not folder or not date_str:
+        return jsonify({'error': 'Folder and date required'}), 400
+    if not os.path.isdir(folder):
+        return jsonify({'error': f'Folder not found: {folder}'}), 400
+    found  = _find_report_input_files(folder, date_str)
+    result = {key: os.path.basename(found[key]) if key in found else None
+              for key in _REPORT_FILE_PATTERNS}
+    # Auto-detect master template in the same folder
+    tmpl_name = None
+    for f in os.listdir(folder):
+        if f.upper().startswith('DAILY_CPAN_REPORTS_MASTER') and f.lower().endswith('.xlsx'):
+            _custom_template_path = os.path.join(folder, f)
+            _save_config({'template_path': _custom_template_path})
+            tmpl_name = f
+            break
+    return jsonify({'files': result, 'template': tmpl_name})
+
+@app.route('/report/start', methods=['POST'])
+def report_start():
+    data      = request.json or {}
+    folder    = (data.get('folder')  or '').strip()
+    date_str  = (data.get('date')    or '').strip()
+    out_name  = (data.get('output')  or '').strip()
+    if not folder or not date_str or not out_name:
+        return jsonify({'error': 'Missing required fields'}), 400
+    found = _find_report_input_files(folder, date_str)
+    if not found:
+        return jsonify({'error': 'No input files found for the given date in that folder'}), 400
+    if not out_name.lower().endswith('.xlsx'):
+        out_name += '.xlsx'
+    default_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'reports_output')
+    reports_dir = _custom_output_dir if _custom_output_dir else default_dir
+    os.makedirs(reports_dir, exist_ok=True)
+    output_path = os.path.join(reports_dir, out_name)
+    try:
+        parts = date_str.split('-')
+        report_date = datetime(int(parts[2]), int(parts[1]), int(parts[0]))
+    except Exception:
+        return jsonify({'error': 'Invalid date format, expected DD-MM-YYYY'}), 400
+    job_id = str(uuid.uuid4())[:8]
+    _report_jobs[job_id] = {'status': 'running', 'logs': [], 'output_path': None, 'pdf_path': None, 'error': None}
+    threading.Thread(target=_run_report_job,
+                     args=(job_id, found, output_path, report_date),
+                     daemon=True).start()
+    return jsonify({'job_id': job_id})
+
+@app.route('/report/status/<job_id>')
+def report_status(job_id):
+    job = _report_jobs.get(job_id)
+    if not job:
+        return jsonify({'error': 'Job not found'}), 404
+    return jsonify({'status': job['status'], 'logs': job['logs'], 'error': job['error'],
+                    'has_pdf': bool(job.get('pdf_path'))})
+
+@app.route('/report/download/<job_id>')
+def report_download(job_id):
+    job = _report_jobs.get(job_id)
+    if not job or job['status'] != 'done' or not job['output_path']:
+        return jsonify({'error': 'Not ready'}), 404
+    path = job['output_path']
+    if not os.path.exists(path):
+        return jsonify({'error': 'Output file not found on server'}), 404
+    return send_file(path, as_attachment=True, download_name=os.path.basename(path))
+
+@app.route('/report/download_pdf/<job_id>')
+def report_download_pdf(job_id):
+    job = _report_jobs.get(job_id)
+    if not job or job['status'] != 'done' or not job.get('pdf_path'):
+        return jsonify({'error': 'PDFs not ready'}), 404
+    path = job['pdf_path']
+    if not os.path.exists(path):
+        return jsonify({'error': 'ZIP file not found on server'}), 404
+    return send_file(path, as_attachment=True,
+                     download_name=os.path.basename(path),
+                     mimetype='application/zip')
+
+# ──────────────────────────────────────────────────────────────────────────────
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=5001, debug=True)
+    app.run(host='0.0.0.0', port=5001, debug=True, use_reloader=False)

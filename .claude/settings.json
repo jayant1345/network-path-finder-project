@@ -1,7 +1,29 @@
 {
   "permissions": {
     "allow": [
-      "Bash(python -c ':*)"
+      "Bash(python -c ':*)",
+      "Bash(git commit:*)",
+      "Bash(pkill -f \"python server.py\")",
+      "Bash(curl -s http://127.0.0.1:5001/report/template_status)",
+      "Bash(curl -s -X POST http://127.0.0.1:5001/report/scan -H 'Content-Type: application/json' -d '{\"folder\":\"C:\\\\\\\\Project_AI\\\\\\\\cpan_report\\\\\\\\CPAN daily reports\\\\\\\\CPAN daily reports\",\"date\":\"02-04-2026\"}')",
+      "Read(//c/Project_AI/cpan_report/CPAN daily reports/CPAN daily reports/**)",
+      "Bash(curl -s -X POST http://127.0.0.1:5001/report/scan -H 'Content-Type: application/json' --data-raw '{\"folder\":\"C:/Project_AI/cpan_report/CPAN daily reports/CPAN daily reports\",\"date\":\"02-04-2026\"}')",
+      "Bash(pkill -f \"server.py\")",
+      "Bash(netstat -ano)",
+      "Bash(taskkill /F /PID 38396 /PID 37624 /PID 33052 /PID 17872 /PID 30092 /PID 1140)",
+      "Bash(taskkill //F //PID 38396 //PID 37624 //PID 33052 //PID 17872 //PID 30092 //PID 1140)",
+      "Bash(taskkill //F //PID 6868 //PID 33052)",
+      "Bash(wmic process:*)",
+      "Read(//proc/33052/**)",
+      "Bash(powershell.exe -Command \"Get-Process -Id 33052 | Select-Object Id, Path, MainWindowTitle\")",
+      "Bash(powershell.exe -Command \"Get-NetTCPConnection -LocalPort 5001 -State Listen | Select-Object -ExpandProperty OwningProcess\")",
+      "Bash(taskkill //F //IM python.exe)",
+      "Bash(taskkill //F //IM pythonw.exe)",
+      "PowerShell(cmd /c \"dir C:\\\\Project_AI\\\\network-path-finder-project\\\\05.05.26\")",
+      "PowerShell(cmd /c \"dir C:\\\\Project_AI\\\\network-path-finder-project\\\\06.06.26\")",
+      "PowerShell(cmd /c \"dir C:\\\\Project_AI\\\\network-path-finder-project\\\\07.05.26\")",
+      "PowerShell(cmd /c \"dir C:\\\\Project_AI\\\\network-path-finder-project\\\\08.05.26\")",
+      "PowerShell(cmd /c \"dir C:\\\\Project_AI\\\\network-path-finder-project\\\\09.05.26\")"
     ]
   }
 }

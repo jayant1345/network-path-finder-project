@@ -54,6 +54,7 @@ header h1 span{color:var(--accent)}
   display:none;position:fixed;inset:0;z-index:100;
   background:rgba(0,0,0,.4);backdrop-filter:blur(4px);
   align-items:center;justify-content:center;
+  padding:20px 0;overflow-y:auto;
 }
 .modal-overlay.open{display:flex}
 .modal{
@@ -260,6 +261,110 @@ tbody tr.row-warning{background:rgba(217,119,6,.05)}
 }
 .btn-clear:hover{background:rgba(5,150,105,.16);border-color:var(--green);}
 
+/* ── Report Modal scroll fix ── */
+.rpt-modal{
+  display:flex;flex-direction:column;
+  max-height:92vh;
+}
+.rpt-modal .modal-body{
+  overflow-y:auto;
+  flex:1;
+}
+
+/* ── Output Folder Button ── */
+.btn-outfolder{
+  display:flex;align-items:center;gap:8px;
+  background:rgba(234,179,8,.1);
+  border:1px solid rgba(234,179,8,.4);
+  color:#b45309;
+  border-radius:8px;
+  padding:9px 18px;
+  font-family:var(--mono);font-size:13px;font-weight:600;
+  cursor:pointer;transition:all .2s;white-space:nowrap;
+}
+.btn-outfolder:hover{background:rgba(234,179,8,.2);border-color:#b45309;box-shadow:0 2px 8px rgba(234,179,8,.2)}
+.btn-outfolder svg{width:15px;height:15px;flex-shrink:0}
+
+/* ── Report Generator Button ── */
+.btn-report{
+  display:flex;align-items:center;gap:8px;
+  background:rgba(46,204,113,.1);
+  border:1px solid rgba(46,204,113,.35);
+  color:#059669;
+  border-radius:8px;
+  padding:9px 18px;
+  font-family:var(--mono);font-size:13px;font-weight:600;
+  cursor:pointer;transition:all .2s;white-space:nowrap;
+}
+.btn-report:hover{background:rgba(46,204,113,.2);border-color:#059669;box-shadow:0 2px 8px rgba(46,204,113,.2)}
+.btn-report svg{width:15px;height:15px;flex-shrink:0}
+
+/* ── Report Modal ── */
+.rpt-modal{width:620px;max-width:96vw}
+.rpt-section{margin-bottom:18px}
+.rpt-label{font-size:11px;font-family:var(--mono);color:var(--muted);text-transform:uppercase;letter-spacing:1px;font-weight:600;margin-bottom:6px;display:block}
+.rpt-row{display:flex;gap:8px;align-items:center}
+.rpt-input{
+  flex:1;background:#f8fafc;border:1.5px solid var(--border);border-radius:8px;
+  color:var(--text);font-family:var(--mono);font-size:13px;padding:9px 12px;
+  outline:none;transition:border-color .2s;
+}
+.rpt-input:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(0,119,204,.1)}
+.rpt-select{
+  background:#f8fafc;border:1.5px solid var(--border);border-radius:8px;
+  color:var(--text);font-family:var(--mono);font-size:13px;padding:8px 10px;
+  outline:none;cursor:pointer;transition:border-color .2s;
+}
+.rpt-select:focus{border-color:var(--accent)}
+.btn-scan{
+  background:rgba(109,40,217,.1);border:1px solid rgba(109,40,217,.3);
+  color:var(--accent2);border-radius:8px;padding:9px 16px;
+  font-family:var(--mono);font-size:13px;font-weight:700;
+  cursor:pointer;transition:all .2s;white-space:nowrap;
+}
+.btn-scan:hover{background:rgba(109,40,217,.18);border-color:var(--accent2)}
+.rpt-file-grid{display:grid;gap:6px;margin-top:2px}
+.rpt-file-row{
+  display:flex;align-items:center;gap:10px;
+  background:#f8fafc;border:1px solid var(--border);border-radius:8px;
+  padding:8px 12px;font-family:var(--mono);font-size:12px;
+}
+.rpt-file-label{min-width:160px;color:var(--muted);font-weight:600}
+.rpt-file-name{flex:1;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.rpt-file-status{font-size:14px;flex-shrink:0}
+.rpt-tmpl-bar{
+  display:flex;align-items:center;gap:8px;
+  background:#f0fdf4;border:1px solid rgba(5,150,105,.25);border-radius:8px;
+  padding:8px 12px;font-family:var(--mono);font-size:12px;color:var(--green);
+}
+.rpt-tmpl-bar.missing{background:#fff5f5;border-color:rgba(220,38,38,.25);color:var(--red)}
+.rpt-log{
+  height:100px;overflow-y:auto;
+  background:#0f1720;border:1px solid var(--border);border-radius:8px;
+  padding:10px 12px;font-family:var(--mono);font-size:12px;color:#b2bec3;
+  white-space:pre-wrap;line-height:1.5;
+}
+.rpt-sep{border:none;border-top:1px solid var(--border);margin:16px 0}
+.btn-generate{
+  flex:2;background:linear-gradient(135deg,#059669,#047857);
+  border:none;color:#fff;border-radius:8px;padding:11px;
+  font-family:var(--sans);font-weight:800;font-size:14px;
+  cursor:pointer;transition:opacity .2s;
+  display:flex;align-items:center;justify-content:center;gap:8px;
+}
+.btn-generate:hover{opacity:.88}
+.btn-generate:disabled{opacity:.4;cursor:not-allowed}
+.btn-download{
+  display:none;flex:1;
+  background:linear-gradient(135deg,var(--accent),#005fa3);
+  border:none;color:#fff;border-radius:8px;padding:11px;
+  font-family:var(--sans);font-weight:800;font-size:14px;
+  cursor:pointer;transition:opacity .2s;text-decoration:none;
+  align-items:center;justify-content:center;gap:8px;
+}
+.btn-download.show{display:flex}
+.btn-download:hover{opacity:.88}
+
 /* ── IP Autocomplete ── */
 .ac-wrap{position:relative;flex:1;min-width:160px;display:flex;flex-direction:column;gap:6px}
 .ac-wrap label{font-size:12px;font-family:var(--mono);color:var(--muted);text-transform:uppercase;letter-spacing:1px;font-weight:600}
@@ -285,6 +390,24 @@ tbody tr.row-warning{background:rgba(217,119,6,.05)}
   <div class="logo-ring">🌐</div>
   <h1>CPAN <span>Network Explorer</span></h1>
   <div class="header-right">
+    <button class="btn-outfolder" id="btn-outfolder" onclick="openOutputFolder()" title="Open reports output folder">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>
+        <polyline points="12 11 12 17"/>
+        <polyline points="9 14 12 17 15 14"/>
+      </svg>
+      Reports Folder
+    </button>
+    <button class="btn-report" onclick="openReportModal()">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+        <polyline points="14 2 14 8 20 8"/>
+        <line x1="16" y1="13" x2="8" y2="13"/>
+        <line x1="16" y1="17" x2="8" y2="17"/>
+        <polyline points="10 9 9 9 8 9"/>
+      </svg>
+      Generate Report
+    </button>
     <button class="btn-upload" onclick="openUploadModal()">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
         <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
@@ -333,6 +456,107 @@ tbody tr.row-warning{background:rgba(217,119,6,.05)}
         <button class="btn-confirm" id="btn-confirm" onclick="doUpload()" disabled>
           ⚡ Load &amp; Refresh
         </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ── Report Generator Modal ── -->
+<div class="modal-overlay" id="report-modal" onclick="handleRptOverlayClick(event)">
+  <div class="modal rpt-modal">
+    <div class="modal-top">
+      <span style="font-size:18px">📊</span>
+      <h3>CPAN Daily Report Generator</h3>
+      <button class="close-btn" onclick="closeReportModal()">×</button>
+    </div>
+    <div class="modal-body" style="padding:20px 24px">
+
+      <!-- Folder + Date row -->
+      <div class="rpt-section">
+        <span class="rpt-label">Input Folder</span>
+        <div class="rpt-row">
+          <input type="text" class="rpt-input" id="rpt-folder"
+                 placeholder="Click Browse or paste folder path…"
+                 oninput="rptFolderChanged()">
+          <button class="btn-scan" id="rpt-browse-btn" onclick="rptBrowseFolder()" style="white-space:nowrap">
+            📁 Browse…
+          </button>
+        </div>
+      </div>
+
+      <div class="rpt-section" style="margin-bottom:12px">
+        <span class="rpt-label">Report Date</span>
+        <div class="rpt-row" style="gap:6px">
+          <select class="rpt-select" id="rpt-day" onchange="rptDateChanged()"></select>
+          <span style="color:var(--muted);font-family:var(--mono);font-weight:700">-</span>
+          <select class="rpt-select" id="rpt-month" onchange="rptDateChanged()"></select>
+          <span style="color:var(--muted);font-family:var(--mono);font-weight:700">-</span>
+          <select class="rpt-select" id="rpt-year" onchange="rptDateChanged()"></select>
+          <button class="btn-scan" onclick="rptScanFiles()">🔍 Scan Files</button>
+        </div>
+      </div>
+
+      <!-- Detected files -->
+      <div class="rpt-section">
+        <span class="rpt-label">Detected Input Files</span>
+        <div class="rpt-file-grid" id="rpt-file-grid">
+          <div class="rpt-file-row"><span class="rpt-file-label">Card Offline Report</span><span class="rpt-file-name" id="rpt-f-card_off" style="color:var(--muted)">—</span><span class="rpt-file-status" id="rpt-s-card_off">⬜</span></div>
+          <div class="rpt-file-row"><span class="rpt-file-label">Device Offline Report</span><span class="rpt-file-name" id="rpt-f-device_off" style="color:var(--muted)">—</span><span class="rpt-file-status" id="rpt-s-device_off">⬜</span></div>
+          <div class="rpt-file-row"><span class="rpt-file-label">Fan Failure Report</span><span class="rpt-file-name" id="rpt-f-fan_fail" style="color:var(--muted)">—</span><span class="rpt-file-status" id="rpt-s-fan_fail">⬜</span></div>
+          <div class="rpt-file-row"><span class="rpt-file-label">CPAN DL Fail Report</span><span class="rpt-file-name" id="rpt-f-dl_fail" style="color:var(--muted)">—</span><span class="rpt-file-status" id="rpt-s-dl_fail">⬜</span></div>
+          <div class="rpt-file-row"><span class="rpt-file-label">Dash Down Report</span><span class="rpt-file-name" id="rpt-f-dash_down" style="color:var(--muted)">—</span><span class="rpt-file-status" id="rpt-s-dash_down">⬜</span></div>
+        </div>
+      </div>
+
+      <!-- Template status -->
+      <div class="rpt-tmpl-bar" id="rpt-tmpl-bar" style="margin-bottom:14px;flex-wrap:wrap;gap:8px">
+        <span id="rpt-tmpl-icon">⬜</span>
+        <span id="rpt-tmpl-text" style="flex:1">Template: checking…</span>
+        <button class="btn-scan" id="rpt-tmpl-browse-btn" onclick="rptBrowseTemplate()"
+                style="padding:4px 12px;font-size:12px">📂 Browse Template</button>
+      </div>
+
+      <!-- Output filename -->
+      <div class="rpt-section" style="margin-bottom:12px">
+        <span class="rpt-label">Output Filename</span>
+        <input type="text" class="rpt-input" id="rpt-output"
+               placeholder="DAILY_CPAN_REPORTS_DD.MM.YY.xlsx" style="width:100%">
+      </div>
+
+      <!-- Save Location -->
+      <div class="rpt-section" style="margin-bottom:12px">
+        <span class="rpt-label">Save Location</span>
+        <div style="display:flex;gap:8px;align-items:center">
+          <input type="text" class="rpt-input" id="rpt-save-dir" readonly
+                 style="flex:1;cursor:default;background:rgba(0,0,0,.15);color:var(--muted);font-size:11px"
+                 placeholder="Loading…">
+          <button class="btn-scan" onclick="rptBrowseOutputFolder()"
+                  style="white-space:nowrap;padding:6px 12px" title="Choose a different save folder">
+            📂 Change
+          </button>
+        </div>
+      </div>
+
+      <hr class="rpt-sep">
+
+      <!-- Progress log -->
+      <div class="rpt-section" style="margin-bottom:14px">
+        <span class="rpt-label">Progress Log</span>
+        <div class="rpt-log" id="rpt-log">Ready. Fill in the folder, select date and click Scan Files, then Generate.</div>
+      </div>
+
+      <!-- Actions -->
+      <div class="modal-actions" style="gap:10px">
+        <button class="btn-cancel" onclick="closeReportModal()">Close</button>
+        <button class="btn-generate" id="rpt-gen-btn" onclick="rptGenerate()">
+          ⚡ Generate Report
+        </button>
+        <a class="btn-download" id="rpt-dl-xlsx" href="#" download style="display:none">
+          ⬇ Download XLSX
+        </a>
+        <a class="btn-download" id="rpt-dl-pdf" href="#" download style="display:none;background:rgba(239,68,68,.15);border-color:#ef4444;color:#ef4444">
+          ⬇ Download PDFs (ZIP)
+        </a>
       </div>
     </div>
   </div>
@@ -827,6 +1051,276 @@ function selectIP(inp, drop, ip){
 
 // Reload node list after data refresh
 function reloadNodes(){ loadNodes(); }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Report Generator
+// ─────────────────────────────────────────────────────────────────────────────
+let rptPollTimer = null;
+
+function openReportModal(){
+  document.getElementById('report-modal').classList.add('open');
+  rptInitSelectors();
+  rptCheckTemplate();
+  rptLoadOutputFolder();
+}
+
+async function rptLoadOutputFolder(){
+  try{
+    const r = await fetch('/report/get_output_folder');
+    const d = await r.json();
+    const el = document.getElementById('rpt-save-dir');
+    if(el) el.value = d.folder;
+  }catch(e){}
+}
+
+async function openOutputFolder(){
+  try{
+    const btn = document.getElementById('btn-outfolder');
+    if(btn){ btn.disabled=true; btn.textContent='⏳ Opening…'; }
+    await fetch('/report/open_output_folder');
+    if(btn){ btn.disabled=false; btn.innerHTML='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/><polyline points="12 11 12 17"/><polyline points="9 14 12 17 15 14"/></svg>Reports Folder'; }
+  }catch(e){
+    const btn = document.getElementById('btn-outfolder');
+    if(btn){ btn.disabled=false; btn.innerHTML='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/><polyline points="12 11 12 17"/><polyline points="9 14 12 17 15 14"/></svg>Reports Folder'; }
+  }
+}
+
+async function rptBrowseOutputFolder(){
+  try{
+    const r = await fetch('/report/browse_output_folder');
+    const d = await r.json();
+    if(d.folder){
+      const el = document.getElementById('rpt-save-dir');
+      if(el) el.value = d.folder;
+    }
+  }catch(e){}
+}
+function closeReportModal(){
+  document.getElementById('report-modal').classList.remove('open');
+  if(rptPollTimer){ clearInterval(rptPollTimer); rptPollTimer=null; }
+}
+function handleRptOverlayClick(e){
+  if(e.target === document.getElementById('report-modal')) closeReportModal();
+}
+
+function rptInitSelectors(){
+  const today = new Date();
+  const dayEl   = document.getElementById('rpt-day');
+  const monEl   = document.getElementById('rpt-month');
+  const yearEl  = document.getElementById('rpt-year');
+  if(dayEl.options.length > 0) return;  // already initialised
+  for(let d=1;d<=31;d++){
+    const o=document.createElement('option');
+    o.value=o.text=String(d).padStart(2,'0');
+    dayEl.appendChild(o);
+  }
+  const months=['01','02','03','04','05','06','07','08','09','10','11','12'];
+  months.forEach(m=>{ const o=document.createElement('option'); o.value=o.text=m; monEl.appendChild(o); });
+  for(let y=2024;y<=2030;y++){
+    const o=document.createElement('option'); o.value=o.text=String(y); yearEl.appendChild(o);
+  }
+  dayEl.value   = String(today.getDate()).padStart(2,'0');
+  monEl.value   = String(today.getMonth()+1).padStart(2,'0');
+  yearEl.value  = String(today.getFullYear());
+  rptUpdateOutputName();
+}
+
+function rptGetDateStr(){
+  const d=document.getElementById('rpt-day').value;
+  const m=document.getElementById('rpt-month').value;
+  const y=document.getElementById('rpt-year').value;
+  return `${d}-${m}-${y}`;
+}
+
+function rptUpdateOutputName(){
+  const d=document.getElementById('rpt-day').value;
+  const m=document.getElementById('rpt-month').value;
+  const y=document.getElementById('rpt-year').value;
+  if(!d||!m||!y) return;
+  const yy=y.slice(2);
+  document.getElementById('rpt-output').value=`DAILY_CPAN_REPORTS_${d}.${m}.${yy}.xlsx`;
+}
+
+function rptDateChanged(){
+  rptUpdateOutputName();
+  const folder=document.getElementById('rpt-folder').value.trim();
+  if(folder) rptScanFiles();
+}
+function rptFolderChanged(){
+  // debounce - scan after user stops typing
+  clearTimeout(rptFolderChanged._t);
+  rptFolderChanged._t = setTimeout(()=>{
+    if(document.getElementById('rpt-folder').value.trim()) rptScanFiles();
+  }, 600);
+}
+
+async function rptBrowseTemplate(){
+  const btn = document.getElementById('rpt-tmpl-browse-btn');
+  btn.disabled = true; btn.textContent = '⏳ Opening…';
+  try{
+    const resp = await fetch('/report/browse_template');
+    const data = await resp.json();
+    if(data.path){
+      document.getElementById('rpt-tmpl-bar').classList.remove('missing');
+      document.getElementById('rpt-tmpl-icon').textContent = '✅';
+      document.getElementById('rpt-tmpl-text').textContent = `Template: ${data.name}`;
+    }
+  } catch(e){ rptLog('Browse template failed: '+e.message); }
+  finally{ btn.disabled=false; btn.textContent='📂 Browse Template'; }
+}
+
+async function rptBrowseFolder(){
+  const btn = document.getElementById('rpt-browse-btn');
+  btn.disabled = true;
+  btn.textContent = '⏳ Opening…';
+  try{
+    const resp = await fetch('/report/browse_folder');
+    const data = await resp.json();
+    if(data.folder){
+      document.getElementById('rpt-folder').value = data.folder;
+      rptScanFiles();
+    }
+  } catch(e){ rptLog('Browse failed: '+e.message); }
+  finally{ btn.disabled=false; btn.textContent='📁 Browse…'; }
+}
+
+async function rptCheckTemplate(){
+  try{
+    const r = await fetch('/report/template_status');
+    const d = await r.json();
+    const bar  = document.getElementById('rpt-tmpl-bar');
+    const icon = document.getElementById('rpt-tmpl-icon');
+    const txt  = document.getElementById('rpt-tmpl-text');
+    if(d.found){
+      bar.classList.remove('missing');
+      icon.textContent='✅';
+      txt.textContent=`Template found: ${d.name}`;
+    } else {
+      bar.classList.add('missing');
+      icon.textContent='❌';
+      txt.textContent='Template (DAILY_CPAN_REPORTS_MASTER*.xlsx) NOT found in server folder';
+    }
+  } catch(e){ /* ignore */ }
+}
+
+const RPT_FILE_KEYS = {
+  card_off:'Card Offline', device_off:'Device Offline',
+  fan_fail:'Fan Failure',  dl_fail:'CPAN DL Fail',
+  dash_down:'Dash Down'
+};
+
+async function rptScanFiles(){
+  const folder   = document.getElementById('rpt-folder').value.trim();
+  const date_str = rptGetDateStr();
+  if(!folder){ rptLog('Enter the input folder path first.'); return; }
+  rptLog(`Scanning ${folder} for ${date_str}...`);
+  try{
+    const resp = await fetch('/report/scan',{
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({folder, date: date_str})
+    });
+    const data = await resp.json();
+    if(data.error){ rptLog('Scan error: '+data.error); return; }
+    let found=0;
+    for(const key of Object.keys(RPT_FILE_KEYS)){
+      const fname  = data.files[key];
+      const nameEl = document.getElementById('rpt-f-'+key);
+      const statEl = document.getElementById('rpt-s-'+key);
+      if(fname){
+        nameEl.textContent = fname;
+        nameEl.style.color = 'var(--green)';
+        statEl.textContent = '✅';
+        found++;
+      } else {
+        nameEl.textContent = 'Not found';
+        nameEl.style.color = 'var(--red)';
+        statEl.textContent = '❌';
+      }
+    }
+    // Auto-update template bar if detected in same folder
+    if(data.template){
+      document.getElementById('rpt-tmpl-bar').classList.remove('missing');
+      document.getElementById('rpt-tmpl-icon').textContent = '✅';
+      document.getElementById('rpt-tmpl-text').textContent = `Template: ${data.template}`;
+    }
+    rptLog(`Scan complete: ${found}/5 files found for ${date_str}` + (data.template ? ` · Template auto-detected` : ''));
+  } catch(e){ rptLog('Scan failed: '+e.message); }
+}
+
+async function rptGenerate(){
+  const folder   = document.getElementById('rpt-folder').value.trim();
+  const date_str = rptGetDateStr();
+  const output   = document.getElementById('rpt-output').value.trim();
+  if(!folder){ alert('Please enter the input folder path.'); return; }
+  if(!output){ alert('Please enter an output filename.'); return; }
+
+  const btn = document.getElementById('rpt-gen-btn');
+  const dlXlsx = document.getElementById('rpt-dl-xlsx');
+  const dlPdf  = document.getElementById('rpt-dl-pdf');
+  btn.disabled = true;
+  btn.textContent = '⏳ Generating...';
+  dlXlsx.style.display = 'none';
+  dlPdf.style.display  = 'none';
+  rptLogClear();
+  rptLog('Starting report generation...');
+
+  try{
+    const resp = await fetch('/report/start',{
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({folder, date: date_str, output})
+    });
+    const data = await resp.json();
+    if(data.error){
+      rptLog('Error: '+data.error);
+      btn.disabled=false; btn.textContent='⚡ Generate Report';
+      return;
+    }
+    const jobId = data.job_id;
+    rptLog(`Job started (${jobId}), please wait...`);
+    let lastLogLen = 0;
+    rptPollTimer = setInterval(async ()=>{
+      try{
+        const sr = await fetch(`/report/status/${jobId}`);
+        const sd = await sr.json();
+        if(sd.logs && sd.logs.length > lastLogLen){
+          sd.logs.slice(lastLogLen).forEach(l => rptLog(l));
+          lastLogLen = sd.logs.length;
+        }
+        if(sd.status === 'done'){
+          clearInterval(rptPollTimer); rptPollTimer=null;
+          btn.disabled=false; btn.textContent='⚡ Generate Report';
+          const xlsxName = output.endsWith('.xlsx') ? output : output+'.xlsx';
+          dlXlsx.href = `/report/download/${jobId}`;
+          dlXlsx.download = xlsxName;
+          dlXlsx.style.display = 'flex';
+          if(sd.has_pdf){
+            dlPdf.href = `/report/download_pdf/${jobId}`;
+            dlPdf.download = xlsxName.replace('.xlsx', '_PDFs.zip');
+            dlPdf.style.display = 'flex';
+          }
+          showToast('success','✅','Report generated!','Click Download XLSX or Download PDF.');
+        } else if(sd.status === 'error'){
+          clearInterval(rptPollTimer); rptPollTimer=null;
+          btn.disabled=false; btn.textContent='⚡ Generate Report';
+          rptLog('FAILED: '+(sd.error||'Unknown error'));
+          showToast('error','❌','Report generation failed', 'Check the progress log for details.');
+        }
+      } catch(e){ /* ignore poll errors */ }
+    }, 1500);
+  } catch(e){
+    rptLog('Request failed: '+e.message);
+    btn.disabled=false; btn.textContent='⚡ Generate Report';
+  }
+}
+
+function rptLog(msg){
+  const el = document.getElementById('rpt-log');
+  el.textContent += (el.textContent ? '\n' : '') + msg;
+  el.scrollTop = el.scrollHeight;
+}
+function rptLogClear(){
+  document.getElementById('rpt-log').textContent='';
+}
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Init

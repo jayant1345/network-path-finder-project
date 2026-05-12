@@ -1,3 +1,5 @@
 flask
 pandas
 networkx
+openpyxl
+pywin32
