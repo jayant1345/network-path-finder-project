@@ -2,6 +2,7 @@
 Pure-Python CPAN daily report generator.
 No Excel master template. No formula dependency.
 Reads 5 input files → builds formatted xlsx → exports PDF.
+Also generates DL-DOWN-RT sheet from Down-DL-list + DL-alarms CSVs.
 """
 
 import os
@@ -876,6 +877,242 @@ def _write_sum_table(wb, sheet_dfs, date_str):
     return ws
 
 
+# ── DL Down Real-Time Report ───────────────────────────────────────────────────
+
+def _clean(val):
+    """Strip tabs, NBSP, and surrounding whitespace from a string value."""
+    return str(val).replace('\t', '').replace('\xa0', ' ').strip()
+
+
+def _extract_endpoint(raw):
+    """
+    Parse A-End / Z-End field like:
+      10.121.18.245_SECTOR 11 GNE_TN725B_GJ_SSA AM_PH1\\S3P1
+    Returns (ip, name, port).
+    """
+    s = _clean(raw)
+    idx1 = s.find('_')
+    if idx1 == -1:
+        return s, '', ''
+    ip = s[:idx1].strip()
+    idx_tn7 = s.find('_TN7', idx1)
+    if idx_tn7 != -1:
+        name = s[idx1 + 1:idx_tn7].strip()
+    else:
+        idx2 = s.find('_', idx1 + 1)
+        name = s[idx1 + 1:idx2].strip() if idx2 != -1 else s[idx1 + 1:].strip()
+    idx_bs = s.find('\\')
+    port = s[idx_bs + 1:].strip() if idx_bs != -1 else ''
+    return ip, name, port
+
+
+def read_dl_down_rt(down_dl_path, dl_alarms_path, report_date):
+    """
+    Replicates the logic of the CPAN REAL TIME DOWN DL Master.xlsx.
+
+    Inputs
+    ------
+    down_dl_path  : path to Down-DL-list_dd-mm-yyyy.csv
+    dl_alarms_path: path to DL-alarms_dd-mm-yyyy.csv
+    report_date   : datetime
+
+    Returns
+    -------
+    DataFrame with columns:
+      Sr, SSA, DL Type, A End of DL, Z End of DL, Full DL Name,
+      Down Date, Down Time, Down Days, A-END IP, A-END Name,
+      Z-END IP, Z-END Name, OA-mix, DateTime-MIX, A-port, Z-port, Client
+    """
+    today = report_date if isinstance(report_date, datetime) else datetime(
+        report_date.year, report_date.month, report_date.day)
+
+    # ── Step 1: build alarm lookup from DL-alarms CSV ──────────────────────────
+    # Key = cleaned DL name, Value = (down_date_str DD-MM-YYYY, time_str, full_dt_str)
+    alarm_map = {}
+    try:
+        alarms_df = pd.read_csv(dl_alarms_path, dtype=str, encoding='utf-8-sig',
+                                on_bad_lines='warn')
+        alarms_df.columns = [c.strip() for c in alarms_df.columns]
+        svc_col = next((c for c in alarms_df.columns
+                        if 'SERVICE ID' in c.upper() or c.upper() == 'SERVICE ID'), None)
+        ct_col  = next((c for c in alarms_df.columns
+                        if 'CREATE TIME' in c.upper()), None)
+        if svc_col and ct_col:
+            for _, row in alarms_df.iterrows():
+                svc = _clean(str(row.get(svc_col, '')))
+                eq  = svc.find('=')
+                if eq == -1:
+                    continue
+                dl_name = svc[eq + 1:].strip()
+                if not dl_name or dl_name in alarm_map:
+                    continue  # keep earliest occurrence
+                ct_raw = _clean(str(row.get(ct_col, '')))
+                # ct_raw e.g. "2026/05/15,16:23:40"
+                comma = ct_raw.find(',')
+                if comma != -1:
+                    date_ymd = ct_raw[:comma].strip()   # 2026/05/15
+                    time_str = ct_raw[comma + 1:].strip()
+                    parts = date_ymd.split('/')
+                    if len(parts) == 3:
+                        date_dmy = f"{parts[2]}-{parts[1]}-{parts[0]}"
+                    else:
+                        date_dmy = date_ymd
+                else:
+                    date_ymd = ct_raw
+                    time_str = ''
+                    date_dmy = date_ymd
+                alarm_map[dl_name] = (date_dmy, time_str, ct_raw)
+    except Exception:
+        pass
+
+    # ── Step 2: process Down-DL-list CSV ──────────────────────────────────────
+    try:
+        dl_df = pd.read_csv(down_dl_path, dtype=str, encoding='utf-8-sig',
+                            on_bad_lines='warn')
+    except Exception:
+        dl_df = pd.read_csv(down_dl_path, dtype=str, encoding='latin1',
+                            on_bad_lines='warn')
+    dl_df.columns = [c.strip() for c in dl_df.columns]
+
+    rows = []
+    for _, row in dl_df.iterrows():
+        raw_name = _clean(str(row.get('Name', '')))
+        if not raw_name:
+            continue
+
+        # SSA = part before first "-"
+        dash = raw_name.find('-')
+        ssa  = raw_name[:dash].strip() if dash != -1 else raw_name
+
+        bw         = _clean(str(row.get('Bandwidth', '')))
+        a_end_raw  = _clean(str(row.get('A End', '')))
+        z_end_raw  = _clean(str(row.get('Z End', '')))
+        client_val = _clean(str(row.get('Client', '')))
+
+        a_ip, a_name, a_port = _extract_endpoint(a_end_raw)
+        z_ip, z_name, z_port = _extract_endpoint(z_end_raw)
+
+        a_mix = f"{a_ip}_{a_name}_{a_port}" if a_ip else ''
+        z_mix = f"{z_ip}_{z_name}_{z_port}" if z_ip else ''
+
+        # Alarm cross-reference
+        alarm_info = alarm_map.get(raw_name, ('', '', ''))
+        down_date, down_time, full_dt = alarm_info
+
+        # Down Days = today − down_date
+        down_days = ''
+        if down_date:
+            try:
+                dd_parts = down_date.split('-')   # DD-MM-YYYY
+                down_dt  = datetime(int(dd_parts[2]), int(dd_parts[1]), int(dd_parts[0]))
+                diff     = (today.replace(hour=0, minute=0, second=0, microsecond=0) -
+                            down_dt.replace(hour=0, minute=0, second=0, microsecond=0)).days
+                down_days = max(0, diff)
+            except Exception:
+                pass
+
+        rows.append({
+            'SSA':         ssa,
+            'DL Type':     bw,
+            'A End of DL': a_mix,
+            'Z End of DL': z_mix,
+            'Full DL Name': raw_name,
+            'Down Date':   down_date,
+            'Down Time':   down_time,
+            'Down Days':   down_days,
+            'A-END IP':    a_ip,
+            'A-END Name':  a_name,
+            'Z-END IP':    z_ip,
+            'Z-END Name':  z_name,
+            'OA-mix':      ssa,
+            'DateTime-MIX': full_dt,
+            'A-port':      a_port,
+            'Z-port':      z_port,
+            'Client':      client_val,
+        })
+
+    if not rows:
+        return pd.DataFrame(columns=[
+            'Sr', 'SSA', 'DL Type', 'A End of DL', 'Z End of DL', 'Full DL Name',
+            'Down Date', 'Down Time', 'Down Days', 'A-END IP', 'A-END Name',
+            'Z-END IP', 'Z-END Name', 'OA-mix', 'DateTime-MIX', 'A-port', 'Z-port', 'Client'
+        ])
+
+    result = pd.DataFrame(rows)
+    # Sort: DLs with known down date first (by down_days desc), then unknowns
+    result['_sort'] = result['Down Days'].apply(
+        lambda x: -int(x) if isinstance(x, int) else 1)
+    result = result.sort_values('_sort').drop(columns=['_sort']).reset_index(drop=True)
+    result.insert(0, 'Sr', range(1, len(result) + 1))
+    return result
+
+
+def _write_dl_down_rt_sheet(wb, df, date_str):
+    """Write DL-DOWN-RT sheet to workbook with same styling as other report sheets."""
+    _DL_DOWN_TITLE_FILL = PatternFill("solid", fgColor="1F3864")
+    _DL_DOWN_HDR_FILL   = PatternFill("solid", fgColor="C00000")   # dark red tab
+    _DL_DOWN_ALT_FILL   = PatternFill("solid", fgColor="FFE4E4")
+    _DL_DOWN_WHITE_FILL = PatternFill("solid", fgColor="FFFFFF")
+
+    ws = wb.create_sheet(title='DL-DOWN-RT')
+    ws.sheet_properties.tabColor = "C00000"
+
+    headers = list(df.columns)
+    n_cols  = len(headers)
+
+    # Row 1: title
+    ws.merge_cells(f"A1:{get_column_letter(n_cols)}1")
+    c = ws['A1']
+    c.value = (f"DATE : {date_str}    "
+               f"Gujarat Circle  -  CPAN Real-Time Down DL Report  -  "
+               f"Total : {len(df)} DLs")
+    c.font      = _TITLE_FONT
+    c.fill      = _DL_DOWN_TITLE_FILL
+    c.alignment = _CENTER
+    ws.row_dimensions[1].height = 24
+
+    # Row 2: headers
+    for ci, hdr in enumerate(headers, 1):
+        c = ws.cell(row=2, column=ci, value=hdr)
+        c.font      = _HDR_FONT
+        c.fill      = _DL_DOWN_HDR_FILL
+        c.alignment = _CENTER
+        c.border    = _BORDER
+    ws.row_dimensions[2].height = 32
+
+    # Data rows
+    for ri, row_data in enumerate(df.values.tolist(), 3):
+        fill = _DL_DOWN_ALT_FILL if ri % 2 == 0 else _DL_DOWN_WHITE_FILL
+        for ci in range(1, n_cols + 1):
+            val = row_data[ci - 1] if ci - 1 < len(row_data) else ''
+            c   = ws.cell(row=ri, column=ci, value=val)
+            c.font      = _DATA_FONT
+            c.fill      = fill
+            c.alignment = _CENTER if ci <= 2 else _LEFT
+            c.border    = _BORDER
+
+    # Column widths
+    for ci, hdr in enumerate(headers, 1):
+        col_vals = [str(hdr)] + [str(r[ci - 1]) for r in df.values.tolist()
+                                 if ci - 1 < len(r)]
+        width = min(max((len(v) for v in col_vals if v), default=8), 50)
+        ws.column_dimensions[get_column_letter(ci)].width = width + 2
+
+    ws.freeze_panes = "A3"
+    ws.page_setup.orientation = 'landscape'
+    ws.page_setup.paperSize   = 9
+    ws.page_setup.fitToWidth  = 1
+    ws.page_setup.fitToHeight = 0
+    ws.sheet_properties.pageSetUpPr.fitToPage = True
+    ws.page_margins.left   = 0.4
+    ws.page_margins.right  = 0.4
+    ws.page_margins.top    = 0.5
+    ws.page_margins.bottom = 0.5
+    ws.page_margins.header = 0.2
+    ws.page_margins.footer = 0.2
+    return ws
+
+
 # ── Main entry point ───────────────────────────────────────────────────────────
 def generate_report(file_map, report_date, output_path, links_df=None):
     """
@@ -966,6 +1203,16 @@ def generate_report(file_map, report_date, output_path, links_df=None):
             logs.append(f"  DASH-DOWN-R: {len(fdf)} rows")
         except Exception as e:
             logs.append(f"  DASH-DOWN-R: SKIP — {e}")
+
+    # DL-DOWN-RT
+    if file_map.get('dl_down') and file_map.get('dl_alarms'):
+        try:
+            dl_rt_df = read_dl_down_rt(
+                file_map['dl_down'], file_map['dl_alarms'], report_date)
+            _write_dl_down_rt_sheet(wb, dl_rt_df, date_str)
+            logs.append(f"  DL-DOWN-RT: {len(dl_rt_df)} rows")
+        except Exception as e:
+            logs.append(f"  DL-DOWN-RT: SKIP — {e}")
 
     # SUM-TABLE (first sheet, index=0)
     if sheet_dfs:

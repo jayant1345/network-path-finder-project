@@ -353,6 +353,8 @@ _REPORT_FILE_PATTERNS = {
     "fan_fail":   ["FAN FAILURE"],
     "dl_fail":    ["CPAN DL FAIL REPORT", "DL FAIL REPORT"],  # prefix varies by date
     "dash_down":  ["DASH-DOWN", "DASH_DOWN"],
+    "dl_down":    ["Down-DL-list"],   # Down-DL-list_dd-mm-yyyy.csv
+    "dl_alarms":  ["DL-alarms"],      # DL-alarms_dd-mm-yyyy.csv
 }
 _REPORT_SHEET_CONFIG = {
     "card_off":   {"sheet_name": "CARD-OFF",   "data_start_row": 11,
@@ -413,9 +415,11 @@ def _find_report_input_files(folder, date_str):
         all_xlsx  = [f for f in all_files if f.lower().endswith('.xlsx')]
         all_csv   = [f for f in all_files if f.lower().endswith('.csv')]
 
+        _CSV_KEYS = {'dash_down', 'dl_down', 'dl_alarms'}
+
         for key, prefixes in _REPORT_FILE_PATTERNS.items():
-            if key == 'dash_down':
-                # DASH-DOWN is CSV; also accept xlsx; may have no date in name
+            if key in _CSV_KEYS:
+                # CSV-based files (also accept xlsx); dash_down may have no date in name
                 pool = all_csv + [f for f in all_xlsx
                                   if any(p.upper() in f.upper() for p in prefixes)]
                 # First try: match by prefix + any date token
@@ -478,6 +482,7 @@ def _run_report_job(job_id, file_map, output_path, report_date):
             'FAN-FAIL-R':   'FAN FAIL REPORT',
             'DL-FAIL-R':    'DL FAIL REPORT',
             'DASH-DOWN-R':  'DASH DOWN REPORT',
+            'DL-DOWN-RT':   'DL DOWN REALTIME REPORT',
         }
         # Date in DD.MM.YYYY format for PDF filename
         pdf_date = report_date.strftime('%d.%m.%Y')
