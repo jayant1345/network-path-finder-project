@@ -980,6 +980,12 @@ def read_dl_down_rt(down_dl_path, dl_alarms_path, report_date):
         if not raw_name:
             continue
 
+        # Only process Critical alarm rows — matches master formula:
+        # =IF(D10="Critical", MAX($C$8:C9)+1, "")
+        alarm_status = _clean(str(row.get('Alarm Status', '')))
+        if alarm_status != 'Critical':
+            continue
+
         # SSA = part before first "-"
         dash = raw_name.find('-')
         ssa  = raw_name[:dash].strip() if dash != -1 else raw_name
