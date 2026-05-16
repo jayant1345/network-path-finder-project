@@ -918,10 +918,10 @@ def read_dl_down_rt(down_dl_path, dl_alarms_path, report_date):
 
     Returns
     -------
-    DataFrame with columns:
-      Sr, SSA, DL Type, A End of DL, Z End of DL, Full DL Name,
+    DataFrame with columns matching FINAL-DL-DOWN-Report master sheet:
+      Sr., OA, DL Type, A End of DL, Z End of DL, Full DL Name,
       Down Date, Down Time, Down Days, A-END IP, A-END Name,
-      Z-END IP, Z-END Name, OA-mix, DateTime-MIX, A-port, Z-port, Client
+      Z-END IP, Z-END Name, OA-mix, Date-time -MIX, A-port, Z-port, Client
     """
     today = report_date if isinstance(report_date, datetime) else datetime(
         report_date.year, report_date.month, report_date.day)
@@ -1012,30 +1012,30 @@ def read_dl_down_rt(down_dl_path, dl_alarms_path, report_date):
                 pass
 
         rows.append({
-            'SSA':         ssa,
-            'DL Type':     bw,
-            'A End of DL': a_mix,
-            'Z End of DL': z_mix,
-            'Full DL Name': raw_name,
-            'Down Date':   down_date,
-            'Down Time':   down_time,
-            'Down Days':   down_days,
-            'A-END IP':    a_ip,
-            'A-END Name':  a_name,
-            'Z-END IP':    z_ip,
-            'Z-END Name':  z_name,
-            'OA-mix':      ssa,
-            'DateTime-MIX': full_dt,
-            'A-port':      a_port,
-            'Z-port':      z_port,
-            'Client':      client_val,
+            'OA':              ssa,
+            'DL Type':         bw,
+            'A End of DL':     a_mix,
+            'Z End of DL':     z_mix,
+            'Full DL Name':    raw_name,
+            'Down Date':       down_date,
+            'Down Time':       down_time,
+            'Down Days':       down_days,
+            'A-END IP':        a_ip,
+            'A-END Name':      a_name,
+            'Z-END IP':        z_ip,
+            'Z-END Name':      z_name,
+            'OA-mix':          ssa,
+            'Date-time -MIX':  full_dt,
+            'A-port':          a_port,
+            'Z-port':          z_port,
+            'Client':          client_val,
         })
 
     if not rows:
         return pd.DataFrame(columns=[
-            'Sr', 'SSA', 'DL Type', 'A End of DL', 'Z End of DL', 'Full DL Name',
+            'Sr.', 'OA', 'DL Type', 'A End of DL', 'Z End of DL', 'Full DL Name',
             'Down Date', 'Down Time', 'Down Days', 'A-END IP', 'A-END Name',
-            'Z-END IP', 'Z-END Name', 'OA-mix', 'DateTime-MIX', 'A-port', 'Z-port', 'Client'
+            'Z-END IP', 'Z-END Name', 'OA-mix', 'Date-time -MIX', 'A-port', 'Z-port', 'Client'
         ])
 
     result = pd.DataFrame(rows)
@@ -1043,7 +1043,7 @@ def read_dl_down_rt(down_dl_path, dl_alarms_path, report_date):
     result['_sort'] = result['Down Days'].apply(
         lambda x: -int(x) if isinstance(x, int) else 1)
     result = result.sort_values('_sort').drop(columns=['_sort']).reset_index(drop=True)
-    result.insert(0, 'Sr', range(1, len(result) + 1))
+    result.insert(0, 'Sr.', range(1, len(result) + 1))
     return result
 
 
