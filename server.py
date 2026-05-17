@@ -469,6 +469,20 @@ def _run_report_job(job_id, file_map, output_path, report_date):
         for l in gen_logs:
             log(l)
 
+        # Auto-update links.csv from Down-DL-list and reload network graphs
+        if file_map.get('dl_down') and os.path.isfile(file_map['dl_down']):
+            try:
+                import shutil
+                links_csv = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'links.csv')
+                shutil.copy2(file_map['dl_down'], links_csv)
+                log("links.csv updated from Down-DL-list — reloading network graphs...")
+                import pandas as _pd
+                _df = _pd.read_csv(links_csv, dtype=str)
+                clean_and_rebuild(_df)
+                log(f"  Network graphs reloaded: {len(df_raw)} links")
+            except Exception as _e:
+                log(f"  links.csv auto-update: SKIP — {_e}")
+
         # Export each sheet as a separate PDF, then zip them
         log("Exporting PDFs (one per report sheet)...")
         import win32com.client
@@ -539,6 +553,16 @@ def _run_report_job(job_id, file_map, output_path, report_date):
         log("Done! xlsx and PDF ready for download.")
         job['status']      = 'done'
         job['output_path'] = abs_output
+
+        # Clean up uploaded temp dir (LAN mode)
+        td = job.get('_temp_dir')
+        if td and os.path.isdir(td):
+            import shutil
+            try:
+                shutil.rmtree(td)
+                log(f"Temp upload folder cleaned up.")
+            except Exception:
+                pass
     except Exception as e:
         import traceback
         job['status'] = 'error'
@@ -546,6 +570,28 @@ def _run_report_job(job_id, file_map, output_path, report_date):
         log(f"ERROR: {str(e)}")
     finally:
         pythoncom.CoUninitialize()
+
+@app.route('/report/is_local')
+def report_is_local():
+    """Return whether the request is from the server machine itself."""
+    remote = request.remote_addr
+    return jsonify({'local': remote in ('127.0.0.1', '::1')})
+
+@app.route('/report/upload_inputs', methods=['POST'])
+def report_upload_inputs():
+    """Accept input files uploaded from a LAN browser, store in a temp dir."""
+    import tempfile
+    files = request.files.getlist('files')
+    if not files or not any(f.filename for f in files):
+        return jsonify({'error': 'No files provided'}), 400
+    temp_dir = tempfile.mkdtemp(prefix='cpan_inputs_')
+    saved = []
+    for f in files:
+        fname = os.path.basename(f.filename)
+        if fname:
+            f.save(os.path.join(temp_dir, fname))
+            saved.append(fname)
+    return jsonify({'temp_dir': temp_dir, 'count': len(saved), 'files': saved})
 
 @app.route('/report/template_status')
 def report_template_status():
@@ -578,27 +624,44 @@ def report_scan():
 @app.route('/report/start', methods=['POST'])
 def report_start():
     data      = request.json or {}
-    folder    = (data.get('folder')  or '').strip()
-    date_str  = (data.get('date')    or '').strip()
-    out_name  = (data.get('output')  or '').strip()
+    folder    = (data.get('folder')   or '').strip()
+    temp_dir  = (data.get('temp_dir') or '').strip()   # from LAN upload flow
+    date_str  = (data.get('date')     or '').strip()
+    out_name  = (data.get('output')   or '').strip()
+
+    # LAN mode: temp_dir replaces folder
+    if temp_dir and os.path.isdir(temp_dir):
+        folder = temp_dir
+
     if not folder or not date_str or not out_name:
         return jsonify({'error': 'Missing required fields'}), 400
+    if not os.path.isdir(folder):
+        return jsonify({'error': f'Folder not found: {folder}'}), 400
+
     found = _find_report_input_files(folder, date_str)
     if not found:
         return jsonify({'error': 'No input files found for the given date in that folder'}), 400
     if not out_name.lower().endswith('.xlsx'):
         out_name += '.xlsx'
+
+    # Output always goes to server-side reports_output; LAN users download via /report/download
     default_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'reports_output')
     reports_dir = _custom_output_dir if _custom_output_dir else default_dir
     os.makedirs(reports_dir, exist_ok=True)
     output_path = os.path.join(reports_dir, out_name)
+
     try:
         parts = date_str.split('-')
         report_date = datetime(int(parts[2]), int(parts[1]), int(parts[0]))
     except Exception:
         return jsonify({'error': 'Invalid date format, expected DD-MM-YYYY'}), 400
+
     job_id = str(uuid.uuid4())[:8]
-    _report_jobs[job_id] = {'status': 'running', 'logs': [], 'output_path': None, 'pdf_path': None, 'error': None}
+    _report_jobs[job_id] = {
+        'status': 'running', 'logs': [], 'output_path': None,
+        'pdf_path': None, 'error': None,
+        '_temp_dir': temp_dir or None,   # clean up after download
+    }
     threading.Thread(target=_run_report_job,
                      args=(job_id, found, output_path, report_date),
                      daemon=True).start()
