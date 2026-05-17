@@ -1017,44 +1017,42 @@ def read_dl_down_rt(down_dl_path, dl_alarms_path, report_date):
             except Exception:
                 pass
 
+        # Circle: WTR if SSA starts with "WTR", else GJ
+        circle = 'WTR' if ssa.upper().startswith('WTR') else 'GJ'
+
+        # A END / Z END display as "Name-Port"
+        a_end_disp = f"{a_name}-{a_port}" if a_name and a_port else (a_name or a_port or '')
+        z_end_disp = f"{z_name}-{z_port}" if z_name and z_port else (z_name or z_port or '')
+
         rows.append({
-            'OA':              ssa,
-            'DL Type':         bw,
-            'A End of DL':     a_mix,
-            'Z End of DL':     z_mix,
-            'Full DL Name':    raw_name,
-            'Down Date':       down_date,
-            'Down Time':       down_time,
-            'Down Days':       down_days,
-            'A-END IP':        a_ip,
-            'A-END Name':      a_name,
-            'Z-END IP':        z_ip,
-            'Z-END Name':      z_name,
-            'OA-mix':          ssa,
-            'Date-time -MIX':  full_dt,
-            'A-port':          a_port,
-            'Z-port':          z_port,
-            'Client':          client_val,
+            'Circle':       circle,
+            'Region':       ssa,
+            'IP A END':     a_ip,
+            'A END':        a_end_disp,
+            'IP Z END':     z_ip,
+            'Z END':        z_end_disp,
+            'Create Time':  full_dt,
+            'Total days':   down_days,
+            '10G/1G':       bw,
         })
 
+    _FINAL_COLS = ['Sr', 'Circle', 'Region', 'IP A END', 'A END',
+                   'IP Z END', 'Z END', 'Create Time', 'Total days', '10G/1G']
+
     if not rows:
-        return pd.DataFrame(columns=[
-            'Sr.', 'OA', 'DL Type', 'A End of DL', 'Z End of DL', 'Full DL Name',
-            'Down Date', 'Down Time', 'Down Days', 'A-END IP', 'A-END Name',
-            'Z-END IP', 'Z-END Name', 'OA-mix', 'Date-time -MIX', 'A-port', 'Z-port', 'Client'
-        ])
+        return pd.DataFrame(columns=_FINAL_COLS)
 
     result = pd.DataFrame(rows)
-    # Sort: 10GE first then GE, within each group by Down Days descending
-    result['_bw_order'] = result['DL Type'].apply(
+    # Sort: 10GE group first (by Total days desc), then GE group (by Total days desc)
+    result['_bw_order'] = result['10G/1G'].apply(
         lambda x: 0 if str(x).strip().upper() == '10GE' else 1)
-    result['_days_sort'] = result['Down Days'].apply(
+    result['_days_sort'] = result['Total days'].apply(
         lambda x: -int(x) if isinstance(x, int) else 1)
     result = (result
               .sort_values(['_bw_order', '_days_sort'])
               .drop(columns=['_bw_order', '_days_sort'])
               .reset_index(drop=True))
-    result.insert(0, 'Sr.', range(1, len(result) + 1))
+    result.insert(0, 'Sr', range(1, len(result) + 1))
     return result
 
 
