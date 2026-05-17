@@ -88,6 +88,44 @@ def load_from_disk():
 
 load_from_disk()
 
+# ── Update alarm status from Down-DL-list CSV ─────────────────────────────────
+def _update_alarm_from_dl_down(dl_down_path):
+    """
+    After report generation, sync df_raw alarm status with the latest
+    Down-DL-list CSV so the path finder and dashboard reflect current
+    DL down state without a manual re-upload.
+    """
+    global last_loaded
+    if df_raw is None:
+        return
+
+    try:
+        try:
+            dl_df = pd.read_csv(dl_down_path, dtype=str, encoding='utf-8-sig',
+                                on_bad_lines='warn')
+        except Exception:
+            dl_df = pd.read_csv(dl_down_path, dtype=str, encoding='latin1',
+                                on_bad_lines='warn')
+
+        dl_df.columns = [c.strip() for c in dl_df.columns]
+        dl_df['Name']         = dl_df['Name'].str.replace('\t', '', regex=False).str.strip()
+        dl_df['Alarm Status'] = dl_df['Alarm Status'].str.replace('\t', '', regex=False).str.strip()
+
+        # Build name → alarm_status map from the Down-DL-list
+        alarm_map = dict(zip(dl_df['Name'], dl_df['Alarm Status']))
+
+        # Update df_raw alarm status for every link that appears in the Down-DL-list
+        updated = df_raw.copy()
+        def _new_alarm(row):
+            name = str(row.get('Name', '')).strip()
+            return alarm_map.get(name, row.get('Alarm Status', ''))
+
+        updated['Alarm Status'] = updated.apply(_new_alarm, axis=1)
+        clean_and_rebuild(updated)
+        last_loaded = datetime.now().strftime('%d-%b-%Y %H:%M')
+    except Exception:
+        pass
+
 # ── Helpers ────────────────────────────────────────────────────────────────────
 def get_edge_info(path):
     hops = []
@@ -469,19 +507,12 @@ def _run_report_job(job_id, file_map, output_path, report_date, links_snap=None)
         for l in gen_logs:
             log(l)
 
-        # Auto-update links.csv from Down-DL-list and reload network graphs
+        # Sync alarm status from Down-DL-list → update dashboard & path finder
         if file_map.get('dl_down') and os.path.isfile(file_map['dl_down']):
-            try:
-                import shutil
-                links_csv = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'links.csv')
-                shutil.copy2(file_map['dl_down'], links_csv)
-                log("links.csv updated from Down-DL-list — reloading network graphs...")
-                import pandas as _pd
-                _df = _pd.read_csv(links_csv, dtype=str)
-                clean_and_rebuild(_df)
-                log(f"  Network graphs reloaded: {len(df_raw)} links")
-            except Exception as _e:
-                log(f"  links.csv auto-update: SKIP — {_e}")
+            log("Updating dashboard alarm status from Down-DL-list...")
+            _update_alarm_from_dl_down(file_map['dl_down'])
+            log(f"  Dashboard updated: {len(df_down)} down links, "
+                f"{len(df_raw)} total links in network.")
 
         # Export each sheet as a separate PDF, then zip them
         log("Exporting PDFs (one per report sheet)...")
