@@ -89,11 +89,13 @@ def load_from_disk():
 load_from_disk()
 
 # ── Update alarm status from Down-DL-list CSV ─────────────────────────────────
-def _update_alarm_from_dl_down(dl_down_path):
+def _update_alarm_from_dl_down(dl_down_path, report_date=None):
     """
     After report generation, sync df_raw alarm status with the latest
     Down-DL-list CSV so the path finder and dashboard reflect current
     DL down state without a manual re-upload.
+    last_loaded is set to the report date (not current time) so the
+    dashboard shows when the DATA is from, not when the sync ran.
     """
     global last_loaded
     if df_raw is None:
@@ -122,7 +124,12 @@ def _update_alarm_from_dl_down(dl_down_path):
 
         updated['Alarm Status'] = updated.apply(_new_alarm, axis=1)
         clean_and_rebuild(updated)
-        last_loaded = datetime.now().strftime('%d-%b-%Y %H:%M')
+
+        # Show report date on dashboard (data is FROM that date, not today)
+        if report_date:
+            last_loaded = report_date.strftime('%d-%b-%Y') + ' (report)'
+        else:
+            last_loaded = datetime.now().strftime('%d-%b-%Y %H:%M')
     except Exception:
         pass
 
@@ -510,7 +517,7 @@ def _run_report_job(job_id, file_map, output_path, report_date, links_snap=None)
         # Sync alarm status from Down-DL-list → update dashboard & path finder
         if file_map.get('dl_down') and os.path.isfile(file_map['dl_down']):
             log("Updating dashboard alarm status from Down-DL-list...")
-            _update_alarm_from_dl_down(file_map['dl_down'])
+            _update_alarm_from_dl_down(file_map['dl_down'], report_date)
             log(f"  Dashboard updated: {len(df_down)} down links, "
                 f"{len(df_raw)} total links in network.")
 
