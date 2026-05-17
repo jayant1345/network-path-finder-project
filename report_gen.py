@@ -1045,10 +1045,15 @@ def read_dl_down_rt(down_dl_path, dl_alarms_path, report_date):
         ])
 
     result = pd.DataFrame(rows)
-    # Sort: DLs with known down date first (by down_days desc), then unknowns
-    result['_sort'] = result['Down Days'].apply(
+    # Sort: 10GE first then GE, within each group by Down Days descending
+    result['_bw_order'] = result['DL Type'].apply(
+        lambda x: 0 if str(x).strip().upper() == '10GE' else 1)
+    result['_days_sort'] = result['Down Days'].apply(
         lambda x: -int(x) if isinstance(x, int) else 1)
-    result = result.sort_values('_sort').drop(columns=['_sort']).reset_index(drop=True)
+    result = (result
+              .sort_values(['_bw_order', '_days_sort'])
+              .drop(columns=['_bw_order', '_days_sort'])
+              .reset_index(drop=True))
     result.insert(0, 'Sr.', range(1, len(result) + 1))
     return result
 
