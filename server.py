@@ -452,7 +452,7 @@ def _find_report_input_files(folder, date_str):
         pass
     return found
 
-def _run_report_job(job_id, file_map, output_path, report_date):
+def _run_report_job(job_id, file_map, output_path, report_date, links_snap=None):
     import pythoncom
     pythoncom.CoInitialize()
     job = _report_jobs[job_id]
@@ -465,7 +465,7 @@ def _run_report_job(job_id, file_map, output_path, report_date):
 
         log("Processing input files with Python...")
         gen_logs = generate_report(file_map, report_date, abs_output,
-                                   links_df=df_raw)
+                                   links_df=links_snap)
         for l in gen_logs:
             log(l)
 
@@ -656,14 +656,19 @@ def report_start():
     except Exception:
         return jsonify({'error': 'Invalid date format, expected DD-MM-YYYY'}), 400
 
+    # Snapshot df_raw NOW in the main thread before handing off to the background
+    # thread — prevents any pandas operation inside report_gen from touching the
+    # live DataFrame that powers the path finder.
+    links_snap = df_raw.copy() if df_raw is not None else None
+
     job_id = str(uuid.uuid4())[:8]
     _report_jobs[job_id] = {
         'status': 'running', 'logs': [], 'output_path': None,
         'pdf_path': None, 'error': None,
-        '_temp_dir': temp_dir or None,   # clean up after download
+        '_temp_dir': temp_dir or None,
     }
     threading.Thread(target=_run_report_job,
-                     args=(job_id, found, output_path, report_date),
+                     args=(job_id, found, output_path, report_date, links_snap),
                      daemon=True).start()
     return jsonify({'job_id': job_id})
 
