@@ -1017,8 +1017,17 @@ def read_dl_down_rt(down_dl_path, dl_alarms_path, report_date):
             except Exception:
                 pass
 
-        # Circle: WTR if SSA starts with "WTR", else GJ
-        circle = 'WTR' if ssa.upper().startswith('WTR') else 'GJ'
+        # Circle: WTR only for WTR AM / WTR RJ (GJ scope); all other WTR excluded
+        ssa_upper = ssa.upper()
+        if ssa_upper.startswith('WTR'):
+            # Extract the short code after "WTR " e.g. "WTR RJ" -> "RJ"
+            parts = ssa_upper.split()
+            wtr_code = parts[1] if len(parts) > 1 else ''
+            if wtr_code not in _WTR_GJ_SSAS:
+                continue   # skip out-of-scope WTR circles (MBI, NP, BPL etc.)
+            circle = 'WTR'
+        else:
+            circle = 'GJ'
 
         # A END / Z END display as "Name-Port"
         a_end_disp = f"{a_name}-{a_port}" if a_name and a_port else (a_name or a_port or '')
