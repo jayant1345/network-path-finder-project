@@ -700,145 +700,10 @@ tbody tr.row-warning{background:rgba(217,119,6,.05)}
       </table>
     </div>
   </div>
-
-  <!-- ── Manual DL Down Entry ─────────────────────────────────────────── -->
-  <div class="table-wrap" style="margin-top:18px">
-    <div class="panel-title" style="justify-content:space-between">
-      <span style="display:flex;align-items:center;gap:8px">
-        <span class="dot red"></span>
-        Manual DL Down — Path Finder Override
-      </span>
-      <span style="font-size:11px;color:var(--muted);font-weight:400">
-        Links added here are excluded from path finding immediately
-      </span>
-    </div>
-
-    <!-- Add form -->
-    <div style="display:flex;gap:8px;align-items:flex-end;padding:12px 16px;flex-wrap:wrap;border-bottom:1px solid var(--border)">
-      <div style="display:flex;flex-direction:column;gap:4px;flex:1;min-width:160px">
-        <label style="font-size:11px;color:var(--muted)">IP A END</label>
-        <input type="text" id="md-ip1" placeholder="e.g. 10.121.96.75"
-               style="padding:6px 10px;border-radius:6px;border:1px solid var(--border);background:var(--surface);color:var(--text);font-size:13px;font-family:var(--mono)"
-               oninput="mdAutoName('md-ip1','md-name1')">
-        <span id="md-name1" style="font-size:11px;color:var(--accent);min-height:14px"></span>
-      </div>
-      <div style="display:flex;flex-direction:column;gap:4px;flex:1;min-width:160px">
-        <label style="font-size:11px;color:var(--muted)">IP Z END</label>
-        <input type="text" id="md-ip2" placeholder="e.g. 10.121.96.112"
-               style="padding:6px 10px;border-radius:6px;border:1px solid var(--border);background:var(--surface);color:var(--text);font-size:13px;font-family:var(--mono)"
-               oninput="mdAutoName('md-ip2','md-name2')">
-        <span id="md-name2" style="font-size:11px;color:var(--accent);min-height:14px"></span>
-      </div>
-      <div style="display:flex;flex-direction:column;gap:4px;flex:2;min-width:180px">
-        <label style="font-size:11px;color:var(--muted)">Reason / Note (optional)</label>
-        <input type="text" id="md-label" placeholder="e.g. Fiber cut Bharuch"
-               style="padding:6px 10px;border-radius:6px;border:1px solid var(--border);background:var(--surface);color:var(--text);font-size:13px">
-      </div>
-      <button onclick="mdAdd()"
-              style="padding:7px 18px;border-radius:6px;background:rgba(220,38,38,.15);border:1px solid #dc2626;color:#ef4444;font-weight:600;font-size:13px;cursor:pointer;white-space:nowrap;align-self:flex-end;margin-bottom:18px">
-        ➕ Mark Down
-      </button>
-    </div>
-
-    <!-- List of manual downs -->
-    <div class="table-scroll">
-      <table id="tbl-manual-downs" style="width:100%">
-        <thead><tr>
-          <th>#</th><th>IP A END</th><th>A END Name</th>
-          <th>IP Z END</th><th>Z END Name</th><th>Reason</th><th>Action</th>
-        </tr></thead>
-        <tbody id="body-manual-downs">
-          <tr><td colspan="7" style="text-align:center;color:var(--muted);padding:12px">
-            No manual entries — path finder uses CSV alarm status only
-          </td></tr>
-        </tbody>
-      </table>
-    </div>
-  </div>
 </div>
 
 <script>
 // ─────────────────────────────────────────────────────────────────────────────
-// ── Manual DL Down ────────────────────────────────────────────────────────────
-let _ipNameCache = {};
-
-function mdAutoName(inputId, labelId){
-  const ip = document.getElementById(inputId).value.trim();
-  const el = document.getElementById(labelId);
-  if(!ip){ el.textContent=''; return; }
-  if(_ipNameCache[ip]){ el.textContent = _ipNameCache[ip]; return; }
-  // Look up from autocomplete data if available
-  if(window._acData){
-    const hit = window._acData.find(n => n.ip === ip);
-    if(hit){ _ipNameCache[ip]=hit.name; el.textContent=hit.name; return; }
-  }
-  el.textContent = '';
-}
-
-async function mdLoadList(){
-  try{
-    const r = await fetch('/manual_downs');
-    const d = await r.json();
-    const tbody = document.getElementById('body-manual-downs');
-    if(!d.downs || d.downs.length===0){
-      tbody.innerHTML='<tr><td colspan="7" style="text-align:center;color:var(--muted);padding:12px">No manual entries — path finder uses CSV alarm status only</td></tr>';
-      return;
-    }
-    tbody.innerHTML = d.downs.map((e,i)=>`
-      <tr>
-        <td style="text-align:center">${i+1}</td>
-        <td style="font-family:var(--mono);font-size:12px">${e.ip1}</td>
-        <td>${e.name1||'—'}</td>
-        <td style="font-family:var(--mono);font-size:12px">${e.ip2}</td>
-        <td>${e.name2||'—'}</td>
-        <td style="color:var(--muted);font-size:12px">${e.label||''}</td>
-        <td style="text-align:center">
-          <button onclick="mdRemove('${e.ip1}','${e.ip2}')"
-                  style="padding:3px 10px;border-radius:4px;background:rgba(220,38,38,.1);border:1px solid #dc2626;color:#ef4444;cursor:pointer;font-size:12px">
-            ✖ Restore
-          </button>
-        </td>
-      </tr>`).join('');
-  }catch(e){}
-}
-
-async function mdAdd(){
-  const ip1   = document.getElementById('md-ip1').value.trim();
-  const ip2   = document.getElementById('md-ip2').value.trim();
-  const label = document.getElementById('md-label').value.trim();
-  if(!ip1||!ip2){ alert('Please enter both IP A END and IP Z END.'); return; }
-  try{
-    const r = await fetch('/manual_downs',{
-      method:'POST', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({ip1,ip2,label})
-    });
-    const d = await r.json();
-    if(d.error){ alert(d.error); return; }
-    document.getElementById('md-ip1').value='';
-    document.getElementById('md-ip2').value='';
-    document.getElementById('md-label').value='';
-    document.getElementById('md-name1').textContent='';
-    document.getElementById('md-name2').textContent='';
-    mdLoadList();
-    showToast('success','🔴','Link marked as down',
-      `${d.name1||ip1} ↔ ${d.name2||ip2} excluded from path finding.`);
-  }catch(e){ alert('Failed: '+e.message); }
-}
-
-async function mdRemove(ip1,ip2){
-  try{
-    await fetch('/manual_downs',{
-      method:'DELETE', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({ip1,ip2})
-    });
-    mdLoadList();
-    showToast('success','✅','Link restored','Link is back in path finding graph.');
-  }catch(e){ alert('Failed: '+e.message); }
-}
-
-// Load manual downs when Down tab is opened
-const _origSwitchTab = typeof switchTab !== 'undefined' ? switchTab : null;
-
 // Helpers
 // ─────────────────────────────────────────────────────────────────────────────
 function ipFromEnd(s){ return (s||'').trim().split('_')[0]; }
@@ -864,7 +729,6 @@ function switchTab(name,btn){
   document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
   document.getElementById('tab-'+name).classList.add('active');
   btn.classList.add('active');
-  if(name==='down') mdLoadList();
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
