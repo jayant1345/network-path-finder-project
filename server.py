@@ -23,14 +23,69 @@ ip_name_map = {}   # IP → human-readable node name
 last_loaded = None
 loaded_filename = "links.csv"
 
+# ── Manual DL down entries (persist across restarts) ──────────────────────────
+_MANUAL_DOWNS_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                                  'manual_downs.json')
+
+def _load_manual_downs():
+    try:
+        import json
+        with open(_MANUAL_DOWNS_FILE) as f:
+            data = json.load(f)
+        # stored as list of [ip1, ip2, label] triples
+        return [tuple(d) for d in data]
+    except Exception:
+        return []
+
+def _save_manual_downs(downs):
+    import json
+    with open(_MANUAL_DOWNS_FILE, 'w') as f:
+        json.dump([list(d) for d in downs], f, indent=2)
+
+_manual_downs = _load_manual_downs()   # list of (ip1, ip2, label)
+
 def extract_node_name(endpoint):
     """Extract human-readable site name from endpoint string like IP_SiteName_..."""
     parts = str(endpoint).strip().split('_')
     return parts[1].strip() if len(parts) > 1 else parts[0].strip()
 
+def _rebuild_graph():
+    """Rebuild G and G10 from df_raw, excluding alarmed links AND manual downs."""
+    global G, G10
+    if df_raw is None:
+        return
+    manual_pairs = {frozenset([d[0], d[1]]) for d in _manual_downs}
+
+    df_healthy = df_raw[
+        ~df_raw['Alarm Status'].str.lower().str.contains('critical|warning', na=False)
+    ].copy()
+
+    data = df_healthy[['A End', 'Z End', 'Bandwidth', 'CIR Utilization Ratio(%)']].copy()
+    data['A IP'] = data['A End'].astype(str).str.strip().str.split('_').str[0]
+    data['Z IP'] = data['Z End'].astype(str).str.strip().str.split('_').str[0]
+
+    # Exclude manually downed links
+    if manual_pairs:
+        mask = data.apply(
+            lambda r: frozenset([r['A IP'], r['Z IP']]) not in manual_pairs, axis=1)
+        data = data[mask]
+
+    G = nx.Graph()
+    G10 = nx.Graph()
+    for _, row in data.iterrows():
+        a, z = row['A IP'], row['Z IP']
+        bw  = row['Bandwidth']
+        cir = row['CIR Utilization Ratio(%)']
+        if not G.has_edge(a, z) or (bw == '10GE' and G[a][z].get('bandwidth') != '10GE'):
+            G.add_edge(a, z, bandwidth=bw, cir=cir)
+        if bw == '10GE':
+            if not G10.has_edge(a, z) or cir < G10[a][z].get('cir', 999):
+                G10.add_edge(a, z, bandwidth='10GE', cir=cir)
+
+
 def clean_and_rebuild(df):
     """Clean dataframe and rebuild all derived data + graph."""
-    global df_raw, df_down, df_10g, G, G10, ip_name_map
+    global df_raw, df_down, df_10g, ip_name_map
 
     for col in df.columns:
         if df[col].dtype == object:
@@ -47,12 +102,6 @@ def clean_and_rebuild(df):
     df_10g  = df[df['Bandwidth'] == '10GE'].copy()
     df_10g  = df_10g.sort_values('CIR Utilization Ratio(%)', ascending=True)
 
-    # Rebuild graph — exclude alarmed (down) links so path finder only uses healthy links
-    df_healthy = df[~df['Alarm Status'].str.lower().str.contains('critical|warning', na=False)].copy()
-    data = df_healthy[['A End', 'Z End', 'Bandwidth', 'CIR Utilization Ratio(%)']].copy()
-    data['A IP'] = data['A End'].astype(str).str.strip().str.split('_').str[0]
-    data['Z IP'] = data['Z End'].astype(str).str.strip().str.split('_').str[0]
-
     # Build IP → node name mapping (from all links so names are always available)
     ip_name_map = {}
     for _, row in df[['A End', 'Z End']].iterrows():
@@ -63,19 +112,7 @@ def clean_and_rebuild(df):
         if z_ip not in ip_name_map:
             ip_name_map[z_ip] = extract_node_name(row['Z End'])
 
-    G = nx.Graph()
-    G10 = nx.Graph()
-    for _, row in data.iterrows():
-        a, z = row['A IP'], row['Z IP']
-        bw  = row['Bandwidth']
-        cir = row['CIR Utilization Ratio(%)']
-        # Prefer 10GE over GE when multiple links exist between same nodes
-        if not G.has_edge(a, z) or (bw == '10GE' and G[a][z].get('bandwidth') != '10GE'):
-            G.add_edge(a, z, bandwidth=bw, cir=cir)
-        # 10GE-only graph for guaranteed all-10GE path search
-        if bw == '10GE':
-            if not G10.has_edge(a, z) or cir < G10[a][z].get('cir', 999):
-                G10.add_edge(a, z, bandwidth='10GE', cir=cir)
+    _rebuild_graph()
 
 # ── Initial load from disk ─────────────────────────────────────────────────────
 def load_from_disk():
@@ -158,6 +195,49 @@ def upload():
         })
     except Exception as e:
         return jsonify({'error': f'Parse error: {str(e)}'}), 400
+
+# ── Manual DL Down API ────────────────────────────────────────────────────────
+@app.route('/manual_downs', methods=['GET'])
+def get_manual_downs():
+    return jsonify({'downs': [
+        {'ip1': d[0], 'ip2': d[1],
+         'label': d[2] if len(d) > 2 else '',
+         'name1': ip_name_map.get(d[0], d[0]),
+         'name2': ip_name_map.get(d[1], d[1])}
+        for d in _manual_downs
+    ]})
+
+@app.route('/manual_downs', methods=['POST'])
+def add_manual_down():
+    global _manual_downs
+    data = request.json or {}
+    ip1  = data.get('ip1', '').strip()
+    ip2  = data.get('ip2', '').strip()
+    label = data.get('label', '').strip()
+    if not ip1 or not ip2:
+        return jsonify({'error': 'Both IP A End and IP Z End are required'}), 400
+    # Prevent duplicates
+    existing = {frozenset([d[0], d[1]]) for d in _manual_downs}
+    if frozenset([ip1, ip2]) in existing:
+        return jsonify({'error': 'This link is already marked as down'}), 400
+    _manual_downs.append((ip1, ip2, label))
+    _save_manual_downs(_manual_downs)
+    _rebuild_graph()
+    return jsonify({'success': True,
+                    'name1': ip_name_map.get(ip1, ip1),
+                    'name2': ip_name_map.get(ip2, ip2)})
+
+@app.route('/manual_downs', methods=['DELETE'])
+def remove_manual_down():
+    global _manual_downs
+    data = request.json or {}
+    ip1  = data.get('ip1', '').strip()
+    ip2  = data.get('ip2', '').strip()
+    pair = frozenset([ip1, ip2])
+    _manual_downs = [d for d in _manual_downs if frozenset([d[0], d[1]]) != pair]
+    _save_manual_downs(_manual_downs)
+    _rebuild_graph()
+    return jsonify({'success': True})
 
 @app.route('/find_path', methods=['POST'])
 def find_path():
