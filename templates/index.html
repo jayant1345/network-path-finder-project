@@ -472,7 +472,7 @@ tbody tr.row-warning{background:rgba(217,119,6,.05)}
     <div class="modal-body" style="padding:20px 24px">
 
       <!-- LOCAL mode: folder path + browse (PC A only) -->
-      <div id="rpt-local-section">
+      <div id="rpt-local-section" style="display:none">
       <div class="rpt-section">
         <span class="rpt-label">Input Folder</span>
         <div class="rpt-row">
@@ -498,8 +498,11 @@ tbody tr.row-warning{background:rgba(217,119,6,.05)}
           </label>
           <span id="rpt-file-count" style="color:var(--muted);font-size:12px;margin-left:4px">No files selected</span>
         </div>
-        <div style="margin-top:8px;font-size:11px;color:var(--accent);padding:6px 10px;background:rgba(0,119,204,.08);border-radius:6px;border-left:3px solid var(--accent)">
-          Select all input files from your PC (CARD OFFLINE, DEVICE OFFLINE, FAN FAILURE, DL FAIL, DL-alarms, Down-DL-list). The report will download directly to your browser.
+        <div style="margin-top:8px;font-size:11px;color:var(--accent);padding:8px 10px;background:rgba(0,119,204,.08);border-radius:6px;border-left:3px solid var(--accent);line-height:1.7">
+          <b>Step 1:</b> Click "Choose Files…" and select all report files from <b>this PC</b>.<br>
+          <b>Step 2:</b> Set the report date below, then click <b>⚡ Generate Report</b>.<br>
+          <b>Step 3:</b> The report will <b>download directly to your browser</b> when done.<br>
+          <span style="opacity:.75">Files needed: CARD OFFLINE, DEVICE OFFLINE, FAN FAILURE, DL FAIL, DASH-DOWN, Down-DL-list, DL-alarms</span>
         </div>
       </div>
       </div><!-- end rpt-lan-section -->
@@ -512,7 +515,7 @@ tbody tr.row-warning{background:rgba(217,119,6,.05)}
           <select class="rpt-select" id="rpt-month" onchange="rptDateChanged()"></select>
           <span style="color:var(--muted);font-family:var(--mono);font-weight:700">-</span>
           <select class="rpt-select" id="rpt-year" onchange="rptDateChanged()"></select>
-          <button class="btn-scan" onclick="rptScanFiles()">🔍 Scan Files</button>
+          <button class="btn-scan" id="rpt-scan-btn" onclick="rptScanFiles()">🔍 Scan Files</button>
         </div>
       </div>
 
@@ -564,7 +567,7 @@ tbody tr.row-warning{background:rgba(217,119,6,.05)}
       <!-- Progress log -->
       <div class="rpt-section" style="margin-bottom:14px">
         <span class="rpt-label">Progress Log</span>
-        <div class="rpt-log" id="rpt-log">Ready. Fill in the folder, select date and click Scan Files, then Generate.</div>
+        <div class="rpt-log" id="rpt-log">Detecting mode…</div>
       </div>
 
       <!-- Actions -->
@@ -1078,7 +1081,7 @@ function reloadNodes(){ loadNodes(); }
 // Report Generator
 // ─────────────────────────────────────────────────────────────────────────────
 let rptPollTimer = null;
-let rptIsLocal   = true;   // assume local until /report/is_local responds
+let rptIsLocal   = null;   // null until /report/is_local responds
 
 async function rptDetectMode(){
   try{
@@ -1090,6 +1093,18 @@ async function rptDetectMode(){
   document.getElementById('rpt-local-section').style.display = rptIsLocal ? '' : 'none';
   document.getElementById('rpt-lan-section').style.display   = rptIsLocal ? 'none' : '';
   document.getElementById('rpt-save-section').style.display  = rptIsLocal ? '' : 'none';
+  // Scan Files and Browse Template are server-side — hide for LAN users
+  const scanBtn = document.getElementById('rpt-scan-btn');
+  if(scanBtn) scanBtn.style.display = rptIsLocal ? '' : 'none';
+  const tmplBtn = document.getElementById('rpt-tmpl-browse-btn');
+  if(tmplBtn) tmplBtn.style.display = rptIsLocal ? '' : 'none';
+  // Update progress log hint
+  const logEl = document.getElementById('rpt-log');
+  if(logEl && logEl.textContent.startsWith('Detecting')){
+    logEl.textContent = rptIsLocal
+      ? 'Ready. Fill in the folder, select date and click Scan Files, then Generate.'
+      : 'Ready. Choose your input files from this PC, set the date, then click Generate Report.';
+  }
 }
 
 function rptHandleFileSelect(input){
@@ -1213,13 +1228,12 @@ function rptUpdateOutputName(){
 function rptDateChanged(){
   rptUpdateOutputName();
   const folder=document.getElementById('rpt-folder').value.trim();
-  if(folder) rptScanFiles();
+  if(rptIsLocal && folder) rptScanFiles();
 }
 function rptFolderChanged(){
-  // debounce - scan after user stops typing
   clearTimeout(rptFolderChanged._t);
   rptFolderChanged._t = setTimeout(()=>{
-    if(document.getElementById('rpt-folder').value.trim()) rptScanFiles();
+    if(rptIsLocal && document.getElementById('rpt-folder').value.trim()) rptScanFiles();
   }, 600);
 }
 
@@ -1280,6 +1294,7 @@ const RPT_FILE_KEYS = {
 };
 
 async function rptScanFiles(){
+  if(!rptIsLocal) return;   // LAN users upload files directly, no server folder scan
   const folder   = document.getElementById('rpt-folder').value.trim();
   const date_str = rptGetDateStr();
   if(!folder){ rptLog('Enter the input folder path first.'); return; }
