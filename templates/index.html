@@ -481,6 +481,7 @@ tbody tr.row-warning{background:rgba(217,119,6,.05)}
                    onchange="rptHandleFolderSelect(this)">
           </label>
           <span id="rpt-folder-name" style="color:var(--muted);font-size:12px;margin-left:6px">No folder selected</span>
+          <span id="rpt-transfer-status" style="font-size:11px;margin-left:8px;font-family:var(--mono)"></span>
         </div>
       </div>
 
@@ -1056,8 +1057,9 @@ function reloadNodes(){ loadNodes(); }
 // ─────────────────────────────────────────────────────────────────────────────
 // Report Generator
 // ─────────────────────────────────────────────────────────────────────────────
-let rptPollTimer = null;
-let rptIsLocal   = null;   // null until /report/is_local responds
+let rptPollTimer     = null;
+let rptIsLocal       = null;   // null until /report/is_local responds
+let rptUploadPromise = null;   // pre-upload promise started on folder select
 
 async function rptDetectMode(){
   try{
@@ -1079,8 +1081,11 @@ async function rptDetectMode(){
 
 function rptHandleFolderSelect(input){
   const files = Array.from(input.files);
+  const statusEl = document.getElementById('rpt-transfer-status');
   if(files.length === 0){
     document.getElementById('rpt-folder-name').textContent = 'No folder selected';
+    statusEl.textContent = '';
+    rptUploadPromise = null;
     return;
   }
   const folderName = files[0].webkitRelativePath
@@ -1101,23 +1106,49 @@ function rptHandleFolderSelect(input){
   for(const [key, prefixes] of Object.entries(patterns)){
     const match = files.find(f => prefixes.some(p => f.name.toUpperCase().startsWith(p.toUpperCase())));
     const nameEl   = document.getElementById(`rpt-f-${key}`);
-    const statusEl = document.getElementById(`rpt-s-${key}`);
-    if(nameEl && statusEl){
+    const stEl     = document.getElementById(`rpt-s-${key}`);
+    if(nameEl && stEl){
       if(match){
-        nameEl.textContent   = match.name;
-        nameEl.style.color   = '';
-        statusEl.textContent = '✅';
+        nameEl.textContent = match.name;
+        nameEl.style.color = '';
+        stEl.textContent   = '✅';
       } else {
-        nameEl.textContent   = '—';
-        nameEl.style.color   = 'var(--muted)';
-        statusEl.textContent = '⬜';
+        nameEl.textContent = '—';
+        nameEl.style.color = 'var(--muted)';
+        stEl.textContent   = '⬜';
       }
     }
   }
+  // Start transferring files to server in the background immediately
+  statusEl.style.color = 'var(--accent)';
+  statusEl.textContent = '⏳ Transferring to server…';
+  rptUploadPromise = (async()=>{
+    const fd = new FormData();
+    for(const f of files) fd.append('files', f);
+    const r = await fetch('/report/upload_inputs',{method:'POST',body:fd});
+    return await r.json();
+  })();
+  rptUploadPromise.then(d=>{
+    if(d.error){
+      statusEl.style.color = 'var(--red)';
+      statusEl.textContent = '❌ Transfer failed: '+d.error;
+    } else {
+      statusEl.style.color = 'var(--green)';
+      statusEl.textContent = `✅ ${d.count} file${d.count>1?'s':''} ready on server`;
+    }
+  }).catch(e=>{
+    statusEl.style.color = 'var(--red)';
+    statusEl.textContent = '❌ Transfer error: '+e.message;
+  });
 }
 
 function openReportModal(){
   document.getElementById('report-modal').classList.add('open');
+  // Reset folder selection and pre-upload state
+  rptUploadPromise = null;
+  document.getElementById('rpt-folder-input').value = '';
+  document.getElementById('rpt-folder-name').textContent = 'No folder selected';
+  document.getElementById('rpt-transfer-status').textContent = '';
   rptInitSelectors();
   rptCheckTemplate();
   rptLoadOutputFolder();
@@ -1297,21 +1328,25 @@ async function rptGenerate(){
   dlPdf.style.display  = 'none';
   rptLogClear();
 
-  // Upload files from the selected folder (works the same on server PC and LAN PC)
+  // Resolve the pre-upload (started on folder select); fall back to fresh upload if needed
   const folderInput = document.getElementById('rpt-folder-input');
-  if(!folderInput.files || folderInput.files.length === 0){
+  if(!rptUploadPromise || !folderInput.files || folderInput.files.length === 0){
     alert('Please select the input folder first.');
     btn.disabled=false; return;
   }
-  btn.textContent = '⏳ Uploading…';
-  rptLog('Uploading files from your PC…');
   try{
-    const fd = new FormData();
-    for(const f of folderInput.files) fd.append('files', f);
-    const upResp = await fetch('/report/upload_inputs',{method:'POST',body:fd});
-    const upData = await upResp.json();
-    if(upData.error){ rptLog('Upload error: '+upData.error); btn.disabled=false; btn.textContent='⚡ Generate Report'; return; }
-    rptLog(`Uploaded ${upData.count} file(s). Starting report generation…`);
+    // If transfer still in progress, wait for it; otherwise resolves instantly
+    const transferring = document.getElementById('rpt-transfer-status').textContent.includes('Transferring');
+    if(transferring){
+      btn.textContent = '⏳ Waiting for transfer…';
+      rptLog('Waiting for file transfer to complete…');
+    } else {
+      btn.textContent = '⏳ Starting…';
+      rptLog('Starting report generation…');
+    }
+    const upData = await rptUploadPromise;
+    if(upData.error){ rptLog('Transfer error: '+upData.error); btn.disabled=false; btn.textContent='⚡ Generate Report'; return; }
+    rptLog(`Files ready on server (${upData.count}). Generating report…`);
     btn.textContent = '⏳ Generating…';
     const resp = await fetch('/report/start',{
       method:'POST', headers:{'Content-Type':'application/json'},
