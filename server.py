@@ -325,6 +325,7 @@ def _save_config(data):
 _cfg = _load_config()
 _custom_template_path = _cfg.get('template_path')   # persists across restarts
 _custom_output_dir    = _cfg.get('output_dir')       # custom save folder (None = default reports_output)
+_custom_input_folder  = _cfg.get('input_folder')     # server's WhatsApp/download source folder
 
 @app.route('/report/browse_folder')
 def report_browse_folder():
@@ -630,6 +631,69 @@ def report_upload_inputs():
             f.save(os.path.join(temp_dir, fname))
             saved.append(fname)
     return jsonify({'temp_dir': temp_dir, 'count': len(saved), 'files': saved})
+
+@app.route('/report/get_input_folder')
+def report_get_input_folder():
+    return jsonify({'folder': _custom_input_folder or ''})
+
+@app.route('/report/browse_input_folder')
+def report_browse_input_folder():
+    """Server PC only — opens a native folder dialog to set the server input folder."""
+    if request.remote_addr not in ('127.0.0.1', '::1'):
+        return jsonify({'error': 'Server PC only'}), 403
+    global _custom_input_folder
+    import tkinter as tk
+    from tkinter import filedialog
+    default = _custom_input_folder or os.path.expanduser('~')
+    root = tk.Tk(); root.withdraw(); root.attributes('-topmost', True)
+    folder = filedialog.askdirectory(title='Select server input folder (where WhatsApp files are saved)', initialdir=default)
+    root.destroy()
+    if folder:
+        folder = folder.replace('/', '\\')
+        _custom_input_folder = folder
+        _save_config({'input_folder': folder})
+        return jsonify({'folder': folder})
+    return jsonify({'folder': None})
+
+@app.route('/report/fill_from_server', methods=['POST'])
+def report_fill_from_server():
+    """Scan the server's configured input folder and copy found files into a session temp dir.
+    Does NOT overwrite files already in temp_dir (so client uploads take priority)."""
+    import tempfile
+    data     = request.json or {}
+    date_str = data.get('date', '').strip()
+    temp_dir = data.get('temp_dir', '').strip()
+    if not date_str:
+        return jsonify({'error': 'Date required'}), 400
+    if not _custom_input_folder or not os.path.isdir(_custom_input_folder):
+        return jsonify({'found': {}, 'missing': list(_REPORT_FILE_PATTERNS.keys()),
+                        'temp_dir': temp_dir, 'message': 'Server input folder not configured'})
+    found = _find_report_input_files(_custom_input_folder, date_str)
+    if not temp_dir or not os.path.isdir(temp_dir):
+        temp_dir = tempfile.mkdtemp(prefix='cpan_inputs_')
+    copied = {}
+    for key, src_path in found.items():
+        fname = os.path.basename(src_path)
+        dest  = os.path.join(temp_dir, fname)
+        if not os.path.exists(dest):          # don't overwrite already-uploaded files
+            shutil.copy2(src_path, dest)
+        copied[key] = fname
+    missing = [k for k in _REPORT_FILE_PATTERNS if k not in copied]
+    return jsonify({'found': copied, 'missing': missing, 'temp_dir': temp_dir, 'count': len(copied)})
+
+@app.route('/report/upload_single', methods=['POST'])
+def report_upload_single():
+    """Upload one file into an existing session temp dir (or create a new one)."""
+    import tempfile
+    temp_dir = request.form.get('temp_dir', '').strip()
+    f = request.files.get('file')
+    if not f or not f.filename:
+        return jsonify({'error': 'No file provided'}), 400
+    if not temp_dir or not os.path.isdir(temp_dir):
+        temp_dir = tempfile.mkdtemp(prefix='cpan_inputs_')
+    fname = os.path.basename(f.filename)
+    f.save(os.path.join(temp_dir, fname))
+    return jsonify({'filename': fname, 'temp_dir': temp_dir})
 
 @app.route('/report/template_status')
 def report_template_status():
