@@ -329,9 +329,15 @@ tbody tr.row-warning{background:rgba(217,119,6,.05)}
   background:#f8fafc;border:1px solid var(--border);border-radius:8px;
   padding:8px 12px;font-family:var(--mono);font-size:12px;
 }
-.rpt-file-label{min-width:160px;color:var(--muted);font-weight:600}
-.rpt-file-name{flex:1;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.rpt-file-status{font-size:14px;flex-shrink:0}
+.rpt-file-label{min-width:145px;color:var(--muted);font-weight:600}
+.rpt-file-name{flex:1;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:11px}
+.rpt-file-status{font-size:13px;flex-shrink:0}
+.rpt-upload-btn{
+  cursor:pointer;font-size:11px;color:var(--accent);padding:2px 7px;
+  border-radius:4px;border:1px solid rgba(0,119,204,.3);background:rgba(0,119,204,.06);
+  white-space:nowrap;flex-shrink:0;transition:all .15s;
+}
+.rpt-upload-btn:hover{background:rgba(0,119,204,.18);border-color:var(--accent)}
 .rpt-tmpl-bar{
   display:flex;align-items:center;gap:8px;
   background:#f0fdf4;border:1px solid rgba(5,150,105,.25);border-radius:8px;
@@ -471,40 +477,48 @@ tbody tr.row-warning{background:rgba(217,119,6,.05)}
     </div>
     <div class="modal-body" style="padding:20px 24px">
 
-      <!-- Folder + Date row -->
-      <div class="rpt-section">
-        <span class="rpt-label">Input Folder</span>
+      <!-- Server Input Folder config (server PC only) -->
+      <div id="rpt-server-folder-section" class="rpt-section" style="display:none">
+        <span class="rpt-label">Server Input Folder <span style="font-size:10px;color:var(--muted)">(where WhatsApp / downloaded files are stored on this PC)</span></span>
         <div class="rpt-row">
-          <input type="text" class="rpt-input" id="rpt-folder"
-                 placeholder="Click Browse or paste folder path…"
-                 oninput="rptFolderChanged()">
-          <button class="btn-scan" id="rpt-browse-btn" onclick="rptBrowseFolder()" style="white-space:nowrap">
-            📁 Browse…
-          </button>
+          <input type="text" class="rpt-input" id="rpt-server-folder-display" readonly
+                 style="flex:1;cursor:default;background:rgba(0,0,0,.08);color:var(--muted);font-size:11px"
+                 placeholder="Not configured — click Browse to set">
+          <button class="btn-scan" onclick="rptBrowseInputFolder()" style="white-space:nowrap">📁 Browse…</button>
         </div>
       </div>
 
       <div class="rpt-section" style="margin-bottom:12px">
         <span class="rpt-label">Report Date</span>
-        <div class="rpt-row" style="gap:6px">
+        <div class="rpt-row" style="gap:6px;flex-wrap:wrap">
           <select class="rpt-select" id="rpt-day" onchange="rptDateChanged()"></select>
           <span style="color:var(--muted);font-family:var(--mono);font-weight:700">-</span>
           <select class="rpt-select" id="rpt-month" onchange="rptDateChanged()"></select>
           <span style="color:var(--muted);font-family:var(--mono);font-weight:700">-</span>
           <select class="rpt-select" id="rpt-year" onchange="rptDateChanged()"></select>
-          <button class="btn-scan" onclick="rptScanFiles()">🔍 Scan Files</button>
+          <button class="btn-scan" id="rpt-scan-server-btn" onclick="rptScanServer()"
+                  title="Scan server input folder for files matching this date">🔍 Scan Server</button>
         </div>
       </div>
 
-      <!-- Detected files -->
+      <!-- Per-file input grid -->
       <div class="rpt-section">
-        <span class="rpt-label">Detected Input Files</span>
-        <div class="rpt-file-grid" id="rpt-file-grid">
-          <div class="rpt-file-row"><span class="rpt-file-label">Card Offline Report</span><span class="rpt-file-name" id="rpt-f-card_off" style="color:var(--muted)">—</span><span class="rpt-file-status" id="rpt-s-card_off">⬜</span></div>
-          <div class="rpt-file-row"><span class="rpt-file-label">Device Offline Report</span><span class="rpt-file-name" id="rpt-f-device_off" style="color:var(--muted)">—</span><span class="rpt-file-status" id="rpt-s-device_off">⬜</span></div>
-          <div class="rpt-file-row"><span class="rpt-file-label">Fan Failure Report</span><span class="rpt-file-name" id="rpt-f-fan_fail" style="color:var(--muted)">—</span><span class="rpt-file-status" id="rpt-s-fan_fail">⬜</span></div>
-          <div class="rpt-file-row"><span class="rpt-file-label">CPAN DL Fail Report</span><span class="rpt-file-name" id="rpt-f-dl_fail" style="color:var(--muted)">—</span><span class="rpt-file-status" id="rpt-s-dl_fail">⬜</span></div>
-          <div class="rpt-file-row"><span class="rpt-file-label">Dash Down Report</span><span class="rpt-file-name" id="rpt-f-dash_down" style="color:var(--muted)">—</span><span class="rpt-file-status" id="rpt-s-dash_down">⬜</span></div>
+        <span class="rpt-label" style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:6px">
+          Input Files
+          <label class="btn-scan" style="cursor:pointer;font-size:11px;padding:4px 10px;display:inline-flex;align-items:center;gap:5px;font-weight:600">
+            📁 Upload All from Folder
+            <input type="file" id="rpt-folder-input" webkitdirectory style="display:none"
+                   onchange="rptHandleFolderSelect(this)">
+          </label>
+        </span>
+        <div class="rpt-file-grid" id="rpt-file-grid" style="margin-top:8px">
+          <div class="rpt-file-row"><span class="rpt-file-label">Card Offline</span><span class="rpt-file-name" id="rpt-f-card_off" style="color:var(--muted)">—</span><span class="rpt-file-status" id="rpt-s-card_off">⬜</span><label class="rpt-upload-btn" title="Upload from this PC">📎<input type="file" accept=".xlsx,.csv,.xls" style="display:none" onchange="rptUploadSingle('card_off',this)"></label></div>
+          <div class="rpt-file-row"><span class="rpt-file-label">Device Offline</span><span class="rpt-file-name" id="rpt-f-device_off" style="color:var(--muted)">—</span><span class="rpt-file-status" id="rpt-s-device_off">⬜</span><label class="rpt-upload-btn" title="Upload from this PC">📎<input type="file" accept=".xlsx,.csv,.xls" style="display:none" onchange="rptUploadSingle('device_off',this)"></label></div>
+          <div class="rpt-file-row"><span class="rpt-file-label">Fan Failure</span><span class="rpt-file-name" id="rpt-f-fan_fail" style="color:var(--muted)">—</span><span class="rpt-file-status" id="rpt-s-fan_fail">⬜</span><label class="rpt-upload-btn" title="Upload from this PC">📎<input type="file" accept=".xlsx,.csv,.xls" style="display:none" onchange="rptUploadSingle('fan_fail',this)"></label></div>
+          <div class="rpt-file-row"><span class="rpt-file-label">CPAN DL Fail</span><span class="rpt-file-name" id="rpt-f-dl_fail" style="color:var(--muted)">—</span><span class="rpt-file-status" id="rpt-s-dl_fail">⬜</span><label class="rpt-upload-btn" title="Upload from this PC">📎<input type="file" accept=".xlsx,.csv,.xls" style="display:none" onchange="rptUploadSingle('dl_fail',this)"></label></div>
+          <div class="rpt-file-row"><span class="rpt-file-label">Dash Down</span><span class="rpt-file-name" id="rpt-f-dash_down" style="color:var(--muted)">—</span><span class="rpt-file-status" id="rpt-s-dash_down">⬜</span><label class="rpt-upload-btn" title="Upload from this PC">📎<input type="file" accept=".xlsx,.csv,.xls" style="display:none" onchange="rptUploadSingle('dash_down',this)"></label></div>
+          <div class="rpt-file-row"><span class="rpt-file-label">DL Down RT</span><span class="rpt-file-name" id="rpt-f-dl_down" style="color:var(--muted)">—</span><span class="rpt-file-status" id="rpt-s-dl_down">⬜</span><label class="rpt-upload-btn" title="Upload from this PC">📎<input type="file" accept=".xlsx,.csv,.xls" style="display:none" onchange="rptUploadSingle('dl_down',this)"></label></div>
+          <div class="rpt-file-row"><span class="rpt-file-label">DL Alarms</span><span class="rpt-file-name" id="rpt-f-dl_alarms" style="color:var(--muted)">—</span><span class="rpt-file-status" id="rpt-s-dl_alarms">⬜</span><label class="rpt-upload-btn" title="Upload from this PC">📎<input type="file" accept=".xlsx,.csv,.xls" style="display:none" onchange="rptUploadSingle('dl_alarms',this)"></label></div>
         </div>
       </div>
 
@@ -523,9 +537,9 @@ tbody tr.row-warning{background:rgba(217,119,6,.05)}
                placeholder="DAILY_CPAN_REPORTS_DD.MM.YY.xlsx" style="width:100%">
       </div>
 
-      <!-- Save Location -->
-      <div class="rpt-section" style="margin-bottom:12px">
-        <span class="rpt-label">Save Location</span>
+      <!-- Save Location (local/PC A only) -->
+      <div id="rpt-save-section" class="rpt-section" style="margin-bottom:12px">
+        <span class="rpt-label">Save Location <span style="font-size:10px;color:var(--muted)">(server PC only)</span></span>
         <div style="display:flex;gap:8px;align-items:center">
           <input type="text" class="rpt-input" id="rpt-save-dir" readonly
                  style="flex:1;cursor:default;background:rgba(0,0,0,.15);color:var(--muted);font-size:11px"
@@ -542,7 +556,7 @@ tbody tr.row-warning{background:rgba(217,119,6,.05)}
       <!-- Progress log -->
       <div class="rpt-section" style="margin-bottom:14px">
         <span class="rpt-label">Progress Log</span>
-        <div class="rpt-log" id="rpt-log">Ready. Fill in the folder, select date and click Scan Files, then Generate.</div>
+        <div class="rpt-log" id="rpt-log">Detecting mode…</div>
       </div>
 
       <!-- Actions -->
@@ -1056,12 +1070,185 @@ function reloadNodes(){ loadNodes(); }
 // Report Generator
 // ─────────────────────────────────────────────────────────────────────────────
 let rptPollTimer = null;
+let rptIsLocal   = null;   // null until /report/is_local responds
+let rptTempDir   = null;   // shared session folder on server (filled from server scan + uploads)
+
+async function rptDetectMode(){
+  try{
+    const r = await fetch('/report/is_local');
+    const d = await r.json();
+    rptIsLocal = d.local;
+  }catch(e){ rptIsLocal = true; }
+  // Server folder config section: shown on server PC only
+  document.getElementById('rpt-server-folder-section').style.display = rptIsLocal ? '' : 'none';
+  // Save Location: shown on server PC only
+  document.getElementById('rpt-save-section').style.display = rptIsLocal ? '' : 'none';
+  // Browse Template button opens a server-side dialog — hide for LAN users
+  const tmplBtn = document.getElementById('rpt-tmpl-browse-btn');
+  if(tmplBtn) tmplBtn.style.display = rptIsLocal ? '' : 'none';
+  // Load server input folder path (shown in config section on server PC)
+  if(rptIsLocal){
+    try{
+      const r2 = await fetch('/report/get_input_folder');
+      const d2 = await r2.json();
+      const el = document.getElementById('rpt-server-folder-display');
+      if(el) el.value = d2.folder || '';
+      if(el) el.placeholder = d2.folder ? '' : 'Not configured — click Browse to set';
+    }catch(e){}
+  }
+  // Update progress log hint
+  const logEl = document.getElementById('rpt-log');
+  if(logEl && logEl.textContent.startsWith('Detecting')){
+    logEl.textContent = rptIsLocal
+      ? 'Ready. Click "Scan Server" to auto-fill files, then upload any missing ones. Or use "Upload All from Folder".'
+      : 'Ready. Click "Scan Server" to load server files, then use 📎 to upload your local files. Or use "Upload All from Folder".';
+  }
+}
+
+function rptHandleFolderSelect(input){
+  const files = Array.from(input.files);
+  if(files.length === 0) return;
+  const folderName = files[0].webkitRelativePath
+    ? files[0].webkitRelativePath.split('/')[0] : 'folder';
+  rptLog(`Uploading ${files.length} files from "${folderName}"…`);
+  // Optimistic client-side grid update for immediate feedback
+  _rptMatchFilesToGrid(files, '📁');
+  // Upload all files to server session
+  const fd = new FormData();
+  for(const f of files) fd.append('files', f);
+  fetch('/report/upload_inputs',{method:'POST',body:fd})
+    .then(r=>r.json())
+    .then(d=>{
+      if(d.error){ rptLog('Upload error: '+d.error); return; }
+      rptTempDir = d.temp_dir;
+      rptLog(`✅ ${d.count} files uploaded from "${folderName}". Use 📎 to upload any missing files.`);
+    })
+    .catch(e=>rptLog('Upload failed: '+e.message));
+}
+
+function _rptMatchFilesToGrid(files, sourceIcon){
+  const patterns = {
+    card_off:   ['CARD OFFLINE'],
+    device_off: ['DEVICE OFFLINE'],
+    fan_fail:   ['FAN FAILURE'],
+    dl_fail:    ['CPAN DL FAIL REPORT','DL FAIL REPORT'],
+    dash_down:  ['DASH-DOWN','DASH_DOWN'],
+    dl_down:    ['Down-DL-list'],
+    dl_alarms:  ['DL-alarms'],
+  };
+  for(const [key, prefixes] of Object.entries(patterns)){
+    const match = files.find(f => prefixes.some(p => f.name.toUpperCase().startsWith(p.toUpperCase())));
+    const nameEl = document.getElementById('rpt-f-'+key);
+    const statEl = document.getElementById('rpt-s-'+key);
+    if(!nameEl || !statEl) continue;
+    if(match){
+      nameEl.textContent = match.name; nameEl.style.color = '';
+      statEl.textContent = sourceIcon || '✅';
+    } else {
+      nameEl.textContent = '—'; nameEl.style.color = 'var(--muted)';
+      statEl.textContent = '⬜';
+    }
+  }
+}
+
+async function rptScanServer(){
+  const date_str = rptGetDateStr();
+  const btn = document.getElementById('rpt-scan-server-btn');
+  if(btn){ btn.disabled=true; btn.textContent='⏳ Scanning…'; }
+  rptLog(`Scanning server input folder for ${date_str}…`);
+  try{
+    const r = await fetch('/report/fill_from_server',{
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({date: date_str, temp_dir: rptTempDir || ''})
+    });
+    const d = await r.json();
+    if(d.error){ rptLog('Scan error: '+d.error); return; }
+    if(d.message && !d.temp_dir){
+      rptLog('⚠ Server input folder not configured. Ask server PC admin to set it via "Browse…"');
+      return;
+    }
+    rptTempDir = d.temp_dir;
+    // Update grid: found files
+    for(const [key, fname] of Object.entries(d.found||{})){
+      const nameEl = document.getElementById('rpt-f-'+key);
+      const statEl = document.getElementById('rpt-s-'+key);
+      if(nameEl){ nameEl.textContent=fname; nameEl.style.color=''; }
+      if(statEl){ statEl.textContent='🖥️'; statEl.title='From server folder'; }
+    }
+    // Mark genuinely missing (don't overwrite already-uploaded rows)
+    for(const key of (d.missing||[])){
+      const statEl = document.getElementById('rpt-s-'+key);
+      if(statEl && statEl.textContent === '⬜'){
+        const nameEl = document.getElementById('rpt-f-'+key);
+        if(nameEl){ nameEl.textContent='— Missing'; nameEl.style.color='var(--red)'; }
+      }
+    }
+    const missCount = (d.missing||[]).length;
+    rptLog(`✅ Server scan: ${d.count} file(s) found.` +
+      (missCount ? ` ${missCount} missing — use 📎 to upload from this PC.` : ' All files ready!'));
+  } catch(e){ rptLog('Scan failed: '+e.message); }
+  finally{ if(btn){ btn.disabled=false; btn.textContent='🔍 Scan Server'; } }
+}
+
+async function rptUploadSingle(key, input){
+  const file = input.files[0];
+  if(!file) return;
+  const nameEl = document.getElementById('rpt-f-'+key);
+  const statEl = document.getElementById('rpt-s-'+key);
+  if(nameEl){ nameEl.textContent='⏳ Uploading…'; nameEl.style.color='var(--accent)'; }
+  try{
+    const fd = new FormData();
+    fd.append('file', file);
+    if(rptTempDir) fd.append('temp_dir', rptTempDir);
+    const r = await fetch('/report/upload_single',{method:'POST',body:fd});
+    const d = await r.json();
+    if(d.error){
+      if(nameEl){ nameEl.textContent='❌ '+d.error; nameEl.style.color='var(--red)'; }
+      if(statEl) statEl.textContent='❌';
+      return;
+    }
+    rptTempDir = d.temp_dir;
+    if(nameEl){ nameEl.textContent=d.filename; nameEl.style.color=''; }
+    if(statEl){ statEl.textContent='✅'; statEl.title='Uploaded from this PC'; }
+    rptLog(`📎 Uploaded: ${d.filename}`);
+  } catch(e){
+    if(nameEl){ nameEl.textContent='❌ Upload failed'; nameEl.style.color='var(--red)'; }
+    if(statEl) statEl.textContent='❌';
+  }
+}
+
+async function rptBrowseInputFolder(){
+  const btn = event.currentTarget;
+  btn.disabled=true; btn.textContent='⏳ Opening…';
+  try{
+    const r = await fetch('/report/browse_input_folder');
+    const d = await r.json();
+    if(d.folder){
+      const el = document.getElementById('rpt-server-folder-display');
+      if(el) el.value = d.folder;
+      rptLog(`Server input folder set: ${d.folder}`);
+    }
+  } catch(e){ rptLog('Browse failed: '+e.message); }
+  finally{ btn.disabled=false; btn.textContent='📁 Browse…'; }
+}
 
 function openReportModal(){
   document.getElementById('report-modal').classList.add('open');
+  // Reset session state
+  rptTempDir = null;
+  document.getElementById('rpt-folder-input').value = '';
+  // Reset all grid rows
+  const keys = ['card_off','device_off','fan_fail','dl_fail','dash_down','dl_down','dl_alarms'];
+  for(const key of keys){
+    const n=document.getElementById('rpt-f-'+key);
+    const s=document.getElementById('rpt-s-'+key);
+    if(n){ n.textContent='—'; n.style.color='var(--muted)'; }
+    if(s){ s.textContent='⬜'; s.title=''; }
+  }
   rptInitSelectors();
   rptCheckTemplate();
   rptLoadOutputFolder();
+  rptDetectMode();
 }
 
 async function rptLoadOutputFolder(){
@@ -1143,15 +1330,6 @@ function rptUpdateOutputName(){
 
 function rptDateChanged(){
   rptUpdateOutputName();
-  const folder=document.getElementById('rpt-folder').value.trim();
-  if(folder) rptScanFiles();
-}
-function rptFolderChanged(){
-  // debounce - scan after user stops typing
-  clearTimeout(rptFolderChanged._t);
-  rptFolderChanged._t = setTimeout(()=>{
-    if(document.getElementById('rpt-folder').value.trim()) rptScanFiles();
-  }, 600);
 }
 
 async function rptBrowseTemplate(){
@@ -1169,20 +1347,6 @@ async function rptBrowseTemplate(){
   finally{ btn.disabled=false; btn.textContent='📂 Browse Template'; }
 }
 
-async function rptBrowseFolder(){
-  const btn = document.getElementById('rpt-browse-btn');
-  btn.disabled = true;
-  btn.textContent = '⏳ Opening…';
-  try{
-    const resp = await fetch('/report/browse_folder');
-    const data = await resp.json();
-    if(data.folder){
-      document.getElementById('rpt-folder').value = data.folder;
-      rptScanFiles();
-    }
-  } catch(e){ rptLog('Browse failed: '+e.message); }
-  finally{ btn.disabled=false; btn.textContent='📁 Browse…'; }
-}
 
 async function rptCheckTemplate(){
   try{
@@ -1204,109 +1368,77 @@ async function rptCheckTemplate(){
 }
 
 const RPT_FILE_KEYS = {
-  card_off:'Card Offline', device_off:'Device Offline',
-  fan_fail:'Fan Failure',  dl_fail:'CPAN DL Fail',
-  dash_down:'Dash Down'
+  card_off:'Card Offline',  device_off:'Device Offline',
+  fan_fail:'Fan Failure',   dl_fail:'CPAN DL Fail',
+  dash_down:'Dash Down',    dl_down:'DL Down RT',
+  dl_alarms:'DL Alarms'
 };
 
-async function rptScanFiles(){
-  const folder   = document.getElementById('rpt-folder').value.trim();
-  const date_str = rptGetDateStr();
-  if(!folder){ rptLog('Enter the input folder path first.'); return; }
-  rptLog(`Scanning ${folder} for ${date_str}...`);
-  try{
-    const resp = await fetch('/report/scan',{
-      method:'POST', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({folder, date: date_str})
-    });
-    const data = await resp.json();
-    if(data.error){ rptLog('Scan error: '+data.error); return; }
-    let found=0;
-    for(const key of Object.keys(RPT_FILE_KEYS)){
-      const fname  = data.files[key];
-      const nameEl = document.getElementById('rpt-f-'+key);
-      const statEl = document.getElementById('rpt-s-'+key);
-      if(fname){
-        nameEl.textContent = fname;
-        nameEl.style.color = 'var(--green)';
-        statEl.textContent = '✅';
-        found++;
-      } else {
-        nameEl.textContent = 'Not found';
-        nameEl.style.color = 'var(--red)';
-        statEl.textContent = '❌';
+
+function _rptStartPolling(jobId, output){
+  const btn    = document.getElementById('rpt-gen-btn');
+  const dlXlsx = document.getElementById('rpt-dl-xlsx');
+  const dlPdf  = document.getElementById('rpt-dl-pdf');
+  let lastLogLen = 0;
+  rptPollTimer = setInterval(async ()=>{
+    try{
+      const sr = await fetch(`/report/status/${jobId}`);
+      const sd = await sr.json();
+      if(sd.logs && sd.logs.length > lastLogLen){
+        sd.logs.slice(lastLogLen).forEach(l => rptLog(l));
+        lastLogLen = sd.logs.length;
       }
-    }
-    // Auto-update template bar if detected in same folder
-    if(data.template){
-      document.getElementById('rpt-tmpl-bar').classList.remove('missing');
-      document.getElementById('rpt-tmpl-icon').textContent = '✅';
-      document.getElementById('rpt-tmpl-text').textContent = `Template: ${data.template}`;
-    }
-    rptLog(`Scan complete: ${found}/5 files found for ${date_str}` + (data.template ? ` · Template auto-detected` : ''));
-  } catch(e){ rptLog('Scan failed: '+e.message); }
+      if(sd.status === 'done'){
+        clearInterval(rptPollTimer); rptPollTimer=null;
+        btn.disabled=false; btn.textContent='⚡ Generate Report';
+        const xlsxName = output.endsWith('.xlsx') ? output : output+'.xlsx';
+        dlXlsx.href = `/report/download/${jobId}`;
+        dlXlsx.download = xlsxName;
+        dlXlsx.style.display = 'flex';
+        if(sd.has_pdf){
+          dlPdf.href = `/report/download_pdf/${jobId}`;
+          dlPdf.download = xlsxName.replace('.xlsx', '_PDFs.zip');
+          dlPdf.style.display = 'flex';
+        }
+        showToast('success','✅','Report generated!','Click Download XLSX or Download PDF.');
+      } else if(sd.status === 'error'){
+        clearInterval(rptPollTimer); rptPollTimer=null;
+        btn.disabled=false; btn.textContent='⚡ Generate Report';
+        rptLog('FAILED: '+(sd.error||'Unknown error'));
+        showToast('error','❌','Report generation failed', 'Check the progress log for details.');
+      }
+    } catch(e){ /* ignore poll errors */ }
+  }, 1500);
 }
 
 async function rptGenerate(){
-  const folder   = document.getElementById('rpt-folder').value.trim();
-  const date_str = rptGetDateStr();
   const output   = document.getElementById('rpt-output').value.trim();
-  if(!folder){ alert('Please enter the input folder path.'); return; }
+  const date_str = rptGetDateStr();
   if(!output){ alert('Please enter an output filename.'); return; }
 
-  const btn = document.getElementById('rpt-gen-btn');
+  const btn    = document.getElementById('rpt-gen-btn');
   const dlXlsx = document.getElementById('rpt-dl-xlsx');
   const dlPdf  = document.getElementById('rpt-dl-pdf');
   btn.disabled = true;
-  btn.textContent = '⏳ Generating...';
   dlXlsx.style.display = 'none';
   dlPdf.style.display  = 'none';
   rptLogClear();
-  rptLog('Starting report generation...');
 
+  if(!rptTempDir){
+    alert('No files loaded. Click "Scan Server" to load server files, or use 📎 / "Upload All from Folder" to upload files from this PC.');
+    btn.disabled=false; return;
+  }
+  btn.textContent = '⏳ Generating…';
+  rptLog('Starting report generation…');
   try{
     const resp = await fetch('/report/start',{
       method:'POST', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({folder, date: date_str, output})
+      body: JSON.stringify({temp_dir: rptTempDir, date: date_str, output})
     });
     const data = await resp.json();
-    if(data.error){
-      rptLog('Error: '+data.error);
-      btn.disabled=false; btn.textContent='⚡ Generate Report';
-      return;
-    }
-    const jobId = data.job_id;
-    rptLog(`Job started (${jobId}), please wait...`);
-    let lastLogLen = 0;
-    rptPollTimer = setInterval(async ()=>{
-      try{
-        const sr = await fetch(`/report/status/${jobId}`);
-        const sd = await sr.json();
-        if(sd.logs && sd.logs.length > lastLogLen){
-          sd.logs.slice(lastLogLen).forEach(l => rptLog(l));
-          lastLogLen = sd.logs.length;
-        }
-        if(sd.status === 'done'){
-          clearInterval(rptPollTimer); rptPollTimer=null;
-          btn.disabled=false; btn.textContent='⚡ Generate Report';
-          const xlsxName = output.endsWith('.xlsx') ? output : output+'.xlsx';
-          dlXlsx.href = `/report/download/${jobId}`;
-          dlXlsx.download = xlsxName;
-          dlXlsx.style.display = 'flex';
-          if(sd.has_pdf){
-            dlPdf.href = `/report/download_pdf/${jobId}`;
-            dlPdf.download = xlsxName.replace('.xlsx', '_PDFs.zip');
-            dlPdf.style.display = 'flex';
-          }
-          showToast('success','✅','Report generated!','Click Download XLSX or Download PDF.');
-        } else if(sd.status === 'error'){
-          clearInterval(rptPollTimer); rptPollTimer=null;
-          btn.disabled=false; btn.textContent='⚡ Generate Report';
-          rptLog('FAILED: '+(sd.error||'Unknown error'));
-          showToast('error','❌','Report generation failed', 'Check the progress log for details.');
-        }
-      } catch(e){ /* ignore poll errors */ }
-    }, 1500);
+    if(data.error){ rptLog('Error: '+data.error); btn.disabled=false; btn.textContent='⚡ Generate Report'; return; }
+    rptLog(`Job started (${data.job_id}), please wait…`);
+    _rptStartPolling(data.job_id, output);
   } catch(e){
     rptLog('Request failed: '+e.message);
     btn.disabled=false; btn.textContent='⚡ Generate Report';

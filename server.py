@@ -88,6 +88,51 @@ def load_from_disk():
 
 load_from_disk()
 
+# ── Update alarm status from Down-DL-list CSV ─────────────────────────────────
+def _update_alarm_from_dl_down(dl_down_path, report_date=None):
+    """
+    After report generation, sync df_raw alarm status with the latest
+    Down-DL-list CSV so the path finder and dashboard reflect current
+    DL down state without a manual re-upload.
+    last_loaded is set to the report date (not current time) so the
+    dashboard shows when the DATA is from, not when the sync ran.
+    """
+    global last_loaded
+    if df_raw is None:
+        return
+
+    try:
+        try:
+            dl_df = pd.read_csv(dl_down_path, dtype=str, encoding='utf-8-sig',
+                                on_bad_lines='warn')
+        except Exception:
+            dl_df = pd.read_csv(dl_down_path, dtype=str, encoding='latin1',
+                                on_bad_lines='warn')
+
+        dl_df.columns = [c.strip() for c in dl_df.columns]
+        dl_df['Name']         = dl_df['Name'].str.replace('\t', '', regex=False).str.strip()
+        dl_df['Alarm Status'] = dl_df['Alarm Status'].str.replace('\t', '', regex=False).str.strip()
+
+        # Build name → alarm_status map from the Down-DL-list
+        alarm_map = dict(zip(dl_df['Name'], dl_df['Alarm Status']))
+
+        # Update df_raw alarm status for every link that appears in the Down-DL-list
+        updated = df_raw.copy()
+        def _new_alarm(row):
+            name = str(row.get('Name', '')).strip()
+            return alarm_map.get(name, row.get('Alarm Status', ''))
+
+        updated['Alarm Status'] = updated.apply(_new_alarm, axis=1)
+        clean_and_rebuild(updated)
+
+        # Show report date on dashboard (data is FROM that date, not today)
+        if report_date:
+            last_loaded = report_date.strftime('%d-%b-%Y') + ' (report)'
+        else:
+            last_loaded = datetime.now().strftime('%d-%b-%Y %H:%M')
+    except Exception:
+        pass
+
 # ── Helpers ────────────────────────────────────────────────────────────────────
 def get_edge_info(path):
     hops = []
@@ -280,6 +325,7 @@ def _save_config(data):
 _cfg = _load_config()
 _custom_template_path = _cfg.get('template_path')   # persists across restarts
 _custom_output_dir    = _cfg.get('output_dir')       # custom save folder (None = default reports_output)
+_custom_input_folder  = _cfg.get('input_folder')     # server's WhatsApp/download source folder
 
 @app.route('/report/browse_folder')
 def report_browse_folder():
@@ -353,6 +399,8 @@ _REPORT_FILE_PATTERNS = {
     "fan_fail":   ["FAN FAILURE"],
     "dl_fail":    ["CPAN DL FAIL REPORT", "DL FAIL REPORT"],  # prefix varies by date
     "dash_down":  ["DASH-DOWN", "DASH_DOWN"],
+    "dl_down":    ["Down-DL-list"],   # Down-DL-list_dd-mm-yyyy.csv
+    "dl_alarms":  ["DL-alarms"],      # DL-alarms_dd-mm-yyyy.csv
 }
 _REPORT_SHEET_CONFIG = {
     "card_off":   {"sheet_name": "CARD-OFF",   "data_start_row": 11,
@@ -413,9 +461,11 @@ def _find_report_input_files(folder, date_str):
         all_xlsx  = [f for f in all_files if f.lower().endswith('.xlsx')]
         all_csv   = [f for f in all_files if f.lower().endswith('.csv')]
 
+        _CSV_KEYS = {'dash_down', 'dl_down', 'dl_alarms'}
+
         for key, prefixes in _REPORT_FILE_PATTERNS.items():
-            if key == 'dash_down':
-                # DASH-DOWN is CSV; also accept xlsx; may have no date in name
+            if key in _CSV_KEYS:
+                # CSV-based files (also accept xlsx); dash_down may have no date in name
                 pool = all_csv + [f for f in all_xlsx
                                   if any(p.upper() in f.upper() for p in prefixes)]
                 # First try: match by prefix + any date token
@@ -448,7 +498,7 @@ def _find_report_input_files(folder, date_str):
         pass
     return found
 
-def _run_report_job(job_id, file_map, output_path, report_date):
+def _run_report_job(job_id, file_map, output_path, report_date, links_snap=None):
     import pythoncom
     pythoncom.CoInitialize()
     job = _report_jobs[job_id]
@@ -461,9 +511,16 @@ def _run_report_job(job_id, file_map, output_path, report_date):
 
         log("Processing input files with Python...")
         gen_logs = generate_report(file_map, report_date, abs_output,
-                                   links_df=df_raw)
+                                   links_df=links_snap)
         for l in gen_logs:
             log(l)
+
+        # Sync alarm status from Down-DL-list → update dashboard & path finder
+        if file_map.get('dl_down') and os.path.isfile(file_map['dl_down']):
+            log("Updating dashboard alarm status from Down-DL-list...")
+            _update_alarm_from_dl_down(file_map['dl_down'], report_date)
+            log(f"  Dashboard updated: {len(df_down)} down links, "
+                f"{len(df_raw)} total links in network.")
 
         # Export each sheet as a separate PDF, then zip them
         log("Exporting PDFs (one per report sheet)...")
@@ -478,6 +535,7 @@ def _run_report_job(job_id, file_map, output_path, report_date):
             'FAN-FAIL-R':   'FAN FAIL REPORT',
             'DL-FAIL-R':    'DL FAIL REPORT',
             'DASH-DOWN-R':  'DASH DOWN REPORT',
+            'DL-DOWN-RT':   'DL DOWN REALTIME REPORT',
         }
         # Date in DD.MM.YYYY format for PDF filename
         pdf_date = report_date.strftime('%d.%m.%Y')
@@ -534,6 +592,16 @@ def _run_report_job(job_id, file_map, output_path, report_date):
         log("Done! xlsx and PDF ready for download.")
         job['status']      = 'done'
         job['output_path'] = abs_output
+
+        # Clean up uploaded temp dir (LAN mode)
+        td = job.get('_temp_dir')
+        if td and os.path.isdir(td):
+            import shutil
+            try:
+                shutil.rmtree(td)
+                log(f"Temp upload folder cleaned up.")
+            except Exception:
+                pass
     except Exception as e:
         import traceback
         job['status'] = 'error'
@@ -541,6 +609,91 @@ def _run_report_job(job_id, file_map, output_path, report_date):
         log(f"ERROR: {str(e)}")
     finally:
         pythoncom.CoUninitialize()
+
+@app.route('/report/is_local')
+def report_is_local():
+    """Return whether the request is from the server machine itself."""
+    remote = request.remote_addr
+    return jsonify({'local': remote in ('127.0.0.1', '::1')})
+
+@app.route('/report/upload_inputs', methods=['POST'])
+def report_upload_inputs():
+    """Accept input files uploaded from a LAN browser, store in a temp dir."""
+    import tempfile
+    files = request.files.getlist('files')
+    if not files or not any(f.filename for f in files):
+        return jsonify({'error': 'No files provided'}), 400
+    temp_dir = tempfile.mkdtemp(prefix='cpan_inputs_')
+    saved = []
+    for f in files:
+        fname = os.path.basename(f.filename)
+        if fname:
+            f.save(os.path.join(temp_dir, fname))
+            saved.append(fname)
+    return jsonify({'temp_dir': temp_dir, 'count': len(saved), 'files': saved})
+
+@app.route('/report/get_input_folder')
+def report_get_input_folder():
+    return jsonify({'folder': _custom_input_folder or ''})
+
+@app.route('/report/browse_input_folder')
+def report_browse_input_folder():
+    """Server PC only — opens a native folder dialog to set the server input folder."""
+    if request.remote_addr not in ('127.0.0.1', '::1'):
+        return jsonify({'error': 'Server PC only'}), 403
+    global _custom_input_folder
+    import tkinter as tk
+    from tkinter import filedialog
+    default = _custom_input_folder or os.path.expanduser('~')
+    root = tk.Tk(); root.withdraw(); root.attributes('-topmost', True)
+    folder = filedialog.askdirectory(title='Select server input folder (where WhatsApp files are saved)', initialdir=default)
+    root.destroy()
+    if folder:
+        folder = folder.replace('/', '\\')
+        _custom_input_folder = folder
+        _save_config({'input_folder': folder})
+        return jsonify({'folder': folder})
+    return jsonify({'folder': None})
+
+@app.route('/report/fill_from_server', methods=['POST'])
+def report_fill_from_server():
+    """Scan the server's configured input folder and copy found files into a session temp dir.
+    Does NOT overwrite files already in temp_dir (so client uploads take priority)."""
+    import tempfile
+    data     = request.json or {}
+    date_str = data.get('date', '').strip()
+    temp_dir = data.get('temp_dir', '').strip()
+    if not date_str:
+        return jsonify({'error': 'Date required'}), 400
+    if not _custom_input_folder or not os.path.isdir(_custom_input_folder):
+        return jsonify({'found': {}, 'missing': list(_REPORT_FILE_PATTERNS.keys()),
+                        'temp_dir': temp_dir, 'message': 'Server input folder not configured'})
+    found = _find_report_input_files(_custom_input_folder, date_str)
+    if not temp_dir or not os.path.isdir(temp_dir):
+        temp_dir = tempfile.mkdtemp(prefix='cpan_inputs_')
+    copied = {}
+    for key, src_path in found.items():
+        fname = os.path.basename(src_path)
+        dest  = os.path.join(temp_dir, fname)
+        if not os.path.exists(dest):          # don't overwrite already-uploaded files
+            shutil.copy2(src_path, dest)
+        copied[key] = fname
+    missing = [k for k in _REPORT_FILE_PATTERNS if k not in copied]
+    return jsonify({'found': copied, 'missing': missing, 'temp_dir': temp_dir, 'count': len(copied)})
+
+@app.route('/report/upload_single', methods=['POST'])
+def report_upload_single():
+    """Upload one file into an existing session temp dir (or create a new one)."""
+    import tempfile
+    temp_dir = request.form.get('temp_dir', '').strip()
+    f = request.files.get('file')
+    if not f or not f.filename:
+        return jsonify({'error': 'No file provided'}), 400
+    if not temp_dir or not os.path.isdir(temp_dir):
+        temp_dir = tempfile.mkdtemp(prefix='cpan_inputs_')
+    fname = os.path.basename(f.filename)
+    f.save(os.path.join(temp_dir, fname))
+    return jsonify({'filename': fname, 'temp_dir': temp_dir})
 
 @app.route('/report/template_status')
 def report_template_status():
@@ -573,29 +726,51 @@ def report_scan():
 @app.route('/report/start', methods=['POST'])
 def report_start():
     data      = request.json or {}
-    folder    = (data.get('folder')  or '').strip()
-    date_str  = (data.get('date')    or '').strip()
-    out_name  = (data.get('output')  or '').strip()
+    folder    = (data.get('folder')   or '').strip()
+    temp_dir  = (data.get('temp_dir') or '').strip()   # from LAN upload flow
+    date_str  = (data.get('date')     or '').strip()
+    out_name  = (data.get('output')   or '').strip()
+
+    # LAN mode: temp_dir replaces folder
+    if temp_dir and os.path.isdir(temp_dir):
+        folder = temp_dir
+
     if not folder or not date_str or not out_name:
         return jsonify({'error': 'Missing required fields'}), 400
+    if not os.path.isdir(folder):
+        return jsonify({'error': f'Folder not found: {folder}'}), 400
+
     found = _find_report_input_files(folder, date_str)
     if not found:
         return jsonify({'error': 'No input files found for the given date in that folder'}), 400
     if not out_name.lower().endswith('.xlsx'):
         out_name += '.xlsx'
+
+    # Output always goes to server-side reports_output; LAN users download via /report/download
     default_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'reports_output')
     reports_dir = _custom_output_dir if _custom_output_dir else default_dir
     os.makedirs(reports_dir, exist_ok=True)
     output_path = os.path.join(reports_dir, out_name)
+
     try:
         parts = date_str.split('-')
         report_date = datetime(int(parts[2]), int(parts[1]), int(parts[0]))
     except Exception:
         return jsonify({'error': 'Invalid date format, expected DD-MM-YYYY'}), 400
+
+    # Snapshot df_raw NOW in the main thread before handing off to the background
+    # thread — prevents any pandas operation inside report_gen from touching the
+    # live DataFrame that powers the path finder.
+    links_snap = df_raw.copy() if df_raw is not None else None
+
     job_id = str(uuid.uuid4())[:8]
-    _report_jobs[job_id] = {'status': 'running', 'logs': [], 'output_path': None, 'pdf_path': None, 'error': None}
+    _report_jobs[job_id] = {
+        'status': 'running', 'logs': [], 'output_path': None,
+        'pdf_path': None, 'error': None,
+        '_temp_dir': temp_dir or None,
+    }
     threading.Thread(target=_run_report_job,
-                     args=(job_id, found, output_path, report_date),
+                     args=(job_id, found, output_path, report_date, links_snap),
                      daemon=True).start()
     return jsonify({'job_id': job_id})
 
