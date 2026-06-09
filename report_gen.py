@@ -1020,14 +1020,18 @@ def read_dl_down_rt(down_dl_path, dl_alarms_path, report_date):
         # Circle: WTR only for WTR AM / WTR RJ (GJ scope); all other WTR excluded
         ssa_upper = ssa.upper()
         if ssa_upper.startswith('WTR'):
-            # Extract the short code after "WTR " e.g. "WTR RJ" -> "RJ"
             parts = ssa_upper.split()
             wtr_code = parts[1] if len(parts) > 1 else ''
             if wtr_code not in _WTR_GJ_SSAS:
                 continue   # skip out-of-scope WTR circles (MBI, NP, BPL etc.)
-            circle = 'WTR'
+            circle    = 'WTR'
+            ssa_short = wtr_code           # e.g. "WTR RJ" → "RJ"
         else:
-            circle = 'GJ'
+            circle    = 'GJ'
+            # Strip "SSA " prefix: "SSA AM" → "AM", "SSA BCH" → "BCH"
+            ssa_short = ssa[4:].strip() if ssa.upper().startswith('SSA ') else ssa.strip()
+
+        ba_name = _lookup_ba(ssa)          # "SSA AM" → "Ahmedabad", "SSA SR" → "Surat"
 
         # A END / Z END display as "Name-Port"
         a_end_disp = f"{a_name}-{a_port}" if a_name and a_port else (a_name or a_port or '')
@@ -1035,7 +1039,8 @@ def read_dl_down_rt(down_dl_path, dl_alarms_path, report_date):
 
         rows.append({
             'Circle':       circle,
-            'Region':       ssa,
+            'SSA':          ssa_short,
+            'BA':           ba_name,
             'IP A END':     a_ip,
             'A END':        a_end_disp,
             'IP Z END':     z_ip,
@@ -1045,7 +1050,7 @@ def read_dl_down_rt(down_dl_path, dl_alarms_path, report_date):
             '10G/1G':       bw,
         })
 
-    _FINAL_COLS = ['Sr', 'Circle', 'Region', 'IP A END', 'A END',
+    _FINAL_COLS = ['Sr', 'Circle', 'SSA', 'BA', 'IP A END', 'A END',
                    'IP Z END', 'Z END', 'Create Time', 'Total days', '10G/1G']
 
     if not rows:
