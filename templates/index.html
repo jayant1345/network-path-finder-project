@@ -299,6 +299,20 @@ tbody tr.row-warning{background:rgba(217,119,6,.05)}
 .btn-report:hover{background:rgba(46,204,113,.2);border-color:#059669;box-shadow:0 2px 8px rgba(46,204,113,.2)}
 .btn-report svg{width:15px;height:15px;flex-shrink:0}
 
+/* ── Docket Report Button ── */
+.btn-docket{
+  display:flex;align-items:center;gap:8px;
+  background:rgba(234,88,12,.1);
+  border:1px solid rgba(234,88,12,.35);
+  color:#c2410c;
+  border-radius:8px;
+  padding:9px 18px;
+  font-family:var(--mono);font-size:13px;font-weight:600;
+  cursor:pointer;transition:all .2s;white-space:nowrap;
+}
+.btn-docket:hover{background:rgba(234,88,12,.2);border-color:#c2410c;box-shadow:0 2px 8px rgba(234,88,12,.2)}
+.btn-docket svg{width:15px;height:15px;flex-shrink:0}
+
 /* ── Report Modal ── */
 .rpt-modal{width:620px;max-width:96vw}
 .rpt-section{margin-bottom:18px}
@@ -413,6 +427,13 @@ tbody tr.row-warning{background:rgba(217,119,6,.05)}
         <polyline points="10 9 9 9 8 9"/>
       </svg>
       Generate Report
+    </button>
+    <button class="btn-docket" onclick="openDocketModal()">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M2 9a3 3 0 1 0 0 6v3a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-3a3 3 0 1 1 0-6V6a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2z"/>
+        <path d="M13 5v2M13 11v2M13 17v2"/>
+      </svg>
+      Docket Report
     </button>
     <button class="btn-upload" onclick="openUploadModal()">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -570,6 +591,60 @@ tbody tr.row-warning{background:rgba(217,119,6,.05)}
         </a>
         <a class="btn-download" id="rpt-dl-pdf" href="#" download style="display:none;background:rgba(239,68,68,.15);border-color:#ef4444;color:#ef4444">
           ⬇ Download PDFs (ZIP)
+        </a>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ── Docket Report Modal ── -->
+<div class="modal-overlay" id="docket-modal" onclick="handleDktOverlayClick(event)">
+  <div class="modal rpt-modal">
+    <div class="modal-top">
+      <span style="font-size:18px">🎫</span>
+      <h3>GCS Docket Report</h3>
+      <button class="close-btn" onclick="closeDocketModal()">×</button>
+    </div>
+    <div class="modal-body" style="padding:20px 24px">
+
+      <div class="rpt-section">
+        <span class="rpt-label">Shift Date <span style="font-size:10px;color:var(--muted)">(covers 08:00 that day to 08:00 the next day)</span></span>
+        <input type="date" class="rpt-input" id="dkt-date" style="width:100%">
+      </div>
+
+      <p style="font-family:var(--mono);font-size:11.5px;color:var(--muted);margin:-6px 0 16px">
+        Logs into GCS and pulls every docket booked in this shift window, plus any older backlog
+        docket that got cleared during it. Reporter 99412764 is excluded from the main Dockets/CPAN
+        view; their CPAN-DL dockets land in <strong>Other</strong>, MAAN-TL dockets land in
+        <strong>MAAN</strong>. Sheets: <strong>Final Report</strong> (matches the reference
+        DAILY_CPAN_DOCKET_CALCULATION sheet, fully automated), <strong>Dockets</strong>,
+        <strong>CPAN</strong>, <strong>MAAN</strong>, <strong>Other</strong>, and
+        <strong>Summary</strong> (booked/cleared/pending breakdowns plus per-staff average
+        clear-time KPI). Hover over a person's ID to see their name.
+        The Final Report also breaks "Total Resolved" into today's-booking vs old-backlog
+        sub-rows, so the day/night-duty figures reconcile clearly. Reporter 99412764's
+        DL-down/TL-down dockets are additionally excluded from the Final Report's own
+        day/night-duty and pending calculation (GCS mis-records their Date Submitted as
+        00:00 hrs regardless of actual booking time) - they still appear normally in Other/MAAN.
+        Takes ~1 min per ~100 dockets.
+      </p>
+
+      <hr class="rpt-sep">
+
+      <!-- Progress log -->
+      <div class="rpt-section" style="margin-bottom:14px">
+        <span class="rpt-label">Progress Log</span>
+        <div class="rpt-log" id="dkt-log"></div>
+      </div>
+
+      <!-- Actions -->
+      <div class="modal-actions" style="gap:10px">
+        <button class="btn-cancel" onclick="closeDocketModal()">Close</button>
+        <button class="btn-generate" id="dkt-gen-btn" onclick="dktGenerate()">
+          ⚡ Generate Report
+        </button>
+        <a class="btn-download" id="dkt-dl" href="#" download style="display:none">
+          ⬇ Download XLSX
         </a>
       </div>
     </div>
@@ -1452,6 +1527,98 @@ function rptLog(msg){
 }
 function rptLogClear(){
   document.getElementById('rpt-log').textContent='';
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Docket Report Modal
+// ─────────────────────────────────────────────────────────────────────────────
+let dktPollTimer = null;
+
+function openDocketModal(){
+  document.getElementById('docket-modal').classList.add('open');
+  const dateEl = document.getElementById('dkt-date');
+  if(!dateEl.value){
+    const today = new Date();
+    dateEl.value = today.toISOString().slice(0,10);  // yyyy-mm-dd for <input type=date>
+  }
+  dktLogClear();
+  document.getElementById('dkt-dl').style.display = 'none';
+  const btn = document.getElementById('dkt-gen-btn');
+  btn.disabled = false; btn.textContent = '⚡ Generate Report';
+}
+
+function closeDocketModal(){
+  document.getElementById('docket-modal').classList.remove('open');
+  if(dktPollTimer){ clearInterval(dktPollTimer); dktPollTimer=null; }
+}
+
+function handleDktOverlayClick(e){
+  if(e.target === document.getElementById('docket-modal')) closeDocketModal();
+}
+
+function dktLog(msg){
+  const el = document.getElementById('dkt-log');
+  el.textContent += (el.textContent ? '\n' : '') + msg;
+  el.scrollTop = el.scrollHeight;
+}
+function dktLogClear(){
+  document.getElementById('dkt-log').textContent = '';
+}
+
+function _dktStartPolling(jobId, dateDdMmYyyy){
+  const btn = document.getElementById('dkt-gen-btn');
+  const dl  = document.getElementById('dkt-dl');
+  let lastLogLen = 0;
+  dktPollTimer = setInterval(async ()=>{
+    try{
+      const sr = await fetch(`/docket_report/status/${jobId}`);
+      const sd = await sr.json();
+      if(sd.logs && sd.logs.length > lastLogLen){
+        sd.logs.slice(lastLogLen).forEach(l => dktLog(l));
+        lastLogLen = sd.logs.length;
+      }
+      if(sd.status === 'done'){
+        clearInterval(dktPollTimer); dktPollTimer=null;
+        btn.disabled=false; btn.textContent='⚡ Generate Report';
+        dl.href = `/docket_report/download/${jobId}`;
+        dl.download = `docket_report_${dateDdMmYyyy}.xlsx`;
+        dl.style.display = 'flex';
+        showToast('success','✅','Docket report ready!','Click Download XLSX.');
+      } else if(sd.status === 'error'){
+        clearInterval(dktPollTimer); dktPollTimer=null;
+        btn.disabled=false; btn.textContent='⚡ Generate Report';
+        dktLog('FAILED: '+(sd.error||'Unknown error'));
+        showToast('error','❌','Docket report failed','Check the progress log for details.');
+      }
+    } catch(e){ /* ignore poll errors */ }
+  }, 1500);
+}
+
+async function dktGenerate(){
+  const raw = document.getElementById('dkt-date').value;  // yyyy-mm-dd
+  if(!raw){ alert('Please choose a date.'); return; }
+  const [y,m,d] = raw.split('-');
+  const dateStr = `${d}-${m}-${y}`;  // DD-MM-YYYY expected by the server
+
+  const btn = document.getElementById('dkt-gen-btn');
+  btn.disabled = true; btn.textContent = '⏳ Generating…';
+  document.getElementById('dkt-dl').style.display = 'none';
+  dktLogClear();
+  dktLog(`Starting docket report for ${dateStr}…`);
+
+  try{
+    const resp = await fetch('/docket_report/start',{
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({date: dateStr})
+    });
+    const data = await resp.json();
+    if(data.error){ dktLog('Error: '+data.error); btn.disabled=false; btn.textContent='⚡ Generate Report'; return; }
+    dktLog(`Job started (${data.job_id}), please wait…`);
+    _dktStartPolling(data.job_id, dateStr);
+  } catch(e){
+    dktLog('Request failed: '+e.message);
+    btn.disabled=false; btn.textContent='⚡ Generate Report';
+  }
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

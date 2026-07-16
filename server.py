@@ -11,6 +11,8 @@ import uuid
 import zipfile
 from datetime import datetime
 
+import docket_scraper
+
 app = Flask(__name__)
 
 # ── Global state ───────────────────────────────────────────────────────────────
@@ -803,6 +805,56 @@ def report_download_pdf(job_id):
     return send_file(path, as_attachment=True,
                      download_name=os.path.basename(path),
                      mimetype='application/zip')
+
+# ── GCS Docket Report (login + scrape) ─────────────────────────────────────────
+_docket_jobs = {}  # job_id -> {status, logs, output_path, error}
+
+def _run_docket_job(job_id, date_str, output_path):
+    job = _docket_jobs[job_id]
+    def log(msg):
+        job['logs'].append(msg)
+    try:
+        path = docket_scraper.generate_docket_report(date_str, output_path, log=log)
+        job['status']      = 'done'
+        job['output_path'] = path
+    except Exception as e:
+        import traceback
+        job['status'] = 'error'
+        job['error']  = traceback.format_exc()
+        log(f"ERROR: {str(e)}")
+
+@app.route('/docket_report/start', methods=['POST'])
+def docket_report_start():
+    data     = request.json or {}
+    date_str = (data.get('date') or '').strip()
+    if not re.match(r'^\d{2}-\d{2}-\d{4}$', date_str):
+        return jsonify({'error': 'Date required, format DD-MM-YYYY'}), 400
+
+    reports_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'docket_reports')
+    os.makedirs(reports_dir, exist_ok=True)
+    output_path = os.path.join(reports_dir, f'docket_report_{date_str}.xlsx')
+
+    job_id = str(uuid.uuid4())[:8]
+    _docket_jobs[job_id] = {'status': 'running', 'logs': [], 'output_path': None, 'error': None}
+    threading.Thread(target=_run_docket_job, args=(job_id, date_str, output_path), daemon=True).start()
+    return jsonify({'job_id': job_id})
+
+@app.route('/docket_report/status/<job_id>')
+def docket_report_status(job_id):
+    job = _docket_jobs.get(job_id)
+    if not job:
+        return jsonify({'error': 'Job not found'}), 404
+    return jsonify({'status': job['status'], 'logs': job['logs'], 'error': job['error']})
+
+@app.route('/docket_report/download/<job_id>')
+def docket_report_download(job_id):
+    job = _docket_jobs.get(job_id)
+    if not job or job['status'] != 'done' or not job['output_path']:
+        return jsonify({'error': 'Not ready'}), 404
+    path = job['output_path']
+    if not os.path.exists(path):
+        return jsonify({'error': 'Output file not found on server'}), 404
+    return send_file(path, as_attachment=True, download_name=os.path.basename(path))
 
 # ──────────────────────────────────────────────────────────────────────────────
 if __name__ == '__main__':
