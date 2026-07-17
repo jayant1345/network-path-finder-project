@@ -55,6 +55,25 @@ FINAL_FEEDBACK_TEXT = "FF00FF"
 SHIFT_START_HOUR = 8
 NIGHT_START_HOUR = 20
 
+CPAN_STAFF_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "cpan_staff_ids.txt")
+
+
+def _load_cpan_staff_roster():
+    """Reads CPAN_STAFF_FILE (one staff ID per line, '#' starts a comment,
+    blank lines ignored) if it exists and is non-empty. Returns a set of IDs,
+    or None if not configured yet - callers must treat None as "no filtering,
+    count everyone" so the report behaves exactly as before this feature
+    existed until the roster is actually provided."""
+    if not os.path.isfile(CPAN_STAFF_FILE):
+        return None
+    ids = set()
+    with open(CPAN_STAFF_FILE, encoding="utf-8") as f:
+        for line in f:
+            line = line.split("#", 1)[0].strip()
+            if line:
+                ids.add(line)
+    return ids or None
+
 
 def shift_window(date_str):
     """Returns (start_dt, end_dt) for the shift day starting 08:00 on date_str
@@ -433,16 +452,24 @@ def _write_summary_table(ws, header_fill, start_row, title, id_label, table, val
     return header_row + 1 + len(table) + 2  # next free row, one blank line gap
 
 
-def _write_summary_sheet(writer, df):
+def _write_summary_sheet(writer, df, cpan_roster=None):
     """Writes the Summary sheet and returns (ws, next_free_row) so callers can
     append additional tables (e.g. _write_report_v2's CPAN staff summary).
 
     "Booked by" tables are scoped to dockets booked in this shift window.
     "Cleared by Person" is scoped to dockets cleared in this window, which can
-    include old backlog booked earlier — that work is credited here."""
+    include old backlog booked earlier — that work is credited here.
+
+    cpan_roster: if given, a docket cleared by someone not in the roster is
+    treated as not resolved (falls into "pending" here too), so this sheet's
+    "Cleared This Window" / "Pending" figures stay consistent with the Final
+    Report's roster-filtered "Total Resolved" / "Total Pending Dockets"."""
+    is_cleared = df["Cleared This Window"]
+    if cpan_roster is not None:
+        is_cleared = is_cleared & df["Cleared By"].isin(cpan_roster)
     booked_df = df[df["Booked This Window"]]
-    cleared_df = df[df["Cleared This Window"]]
-    pending_df = df[df["Booked This Window"] & ~df["Cleared This Window"]]
+    cleared_df = df[is_cleared]
+    pending_df = df[df["Booked This Window"] & ~is_cleared]
     total_count = len(booked_df)
     cleared_count = len(cleared_df)
     pending_count = len(pending_df)
@@ -501,7 +528,7 @@ def _exclude_reporter_dltl_mask(df):
     return is_excluded_reporter & (dl_down | tl_down)
 
 
-def _compute_final_table(df, start_dt, end_dt):
+def _compute_final_table(df, start_dt, end_dt, cpan_roster=None):
     """Fully reproduces the DAILY_CPAN_DOCKET_CALCULATION reference workbook's
     FINAL-TABLE — including the rows that were manually typed in by hand there
     (day/night duty split, pending-aging buckets) — computed automatically
@@ -511,7 +538,13 @@ def _compute_final_table(df, start_dt, end_dt):
     actually booked in this shift window. "Total Resolved" / Amount of Work
     Done / Daytime / Night Resolved are scoped to dockets CLEARED in this
     window regardless of when they were booked — so old backlog that finally
-    gets resolved during this shift is credited to it."""
+    gets resolved during this shift is credited to it.
+
+    cpan_roster: if given (see _load_cpan_staff_roster), a docket cleared by
+    someone NOT in the roster is treated as not resolved at all - it falls
+    back into "Total Pending Dockets" instead of "Total Resolved", since only
+    CPAN staff can validly resolve a docket. None means no filtering (count
+    everyone), matching behavior before this feature existed."""
     night_cutoff = start_dt.replace(hour=NIGHT_START_HOUR, minute=0, second=0)
     submitted = pd.to_datetime(df["Date Submitted"], format="%Y-%m-%d %H:%M", errors="coerce")
     cleared = pd.to_datetime(df["Cleared On"], format="%Y-%m-%d %H:%M", errors="coerce")
@@ -519,6 +552,8 @@ def _compute_final_table(df, start_dt, end_dt):
     is_maintenance = df["Work Type"] == "Maintenance"
     booked_mask = df["Booked This Window"]
     resolved_mask = df["Cleared This Window"]  # cleared within window, incl. old backlog
+    if cpan_roster is not None:
+        resolved_mask = resolved_mask & df["Cleared By"].isin(cpan_roster)
     is_feedback = df["Status"].str.contains("feedback", case=False, na=False)
 
     def counts(mask):
@@ -590,8 +625,8 @@ def _compute_final_table(df, start_dt, end_dt):
     }
 
 
-def _write_final_report_sheet(writer, df, start_dt, end_dt):
-    m = _compute_final_table(df, start_dt, end_dt)
+def _write_final_report_sheet(writer, df, start_dt, end_dt, cpan_roster=None):
+    m = _compute_final_table(df, start_dt, end_dt, cpan_roster=cpan_roster)
     ws = writer.book.create_sheet("Final Report")
     ws.sheet_properties.tabColor = HEADER_COLORS["Final Report"]
 
@@ -680,6 +715,8 @@ def _write_final_report_sheet(writer, df, start_dt, end_dt):
     # KPI: average clear time per docket (Date Submitted -> Cleared On), among
     # everything cleared this window (incl. old backlog) — staff-performance metric.
     cleared_df = df[df["Cleared This Window"]]
+    if cpan_roster is not None:
+        cleared_df = cleared_df[cleared_df["Cleared By"].isin(cpan_roster)]
     avg_c = _format_duration_minutes(_avg_clear_minutes(cleared_df, "Service Creation"))
     avg_m = _format_duration_minutes(_avg_clear_minutes(cleared_df, "Maintenance"))
     avg_all = _format_duration_minutes(_avg_clear_minutes(cleared_df))
@@ -752,7 +789,7 @@ def _write_sheet(writer, df, sheet_name):
     _add_name_comments(ws, df, COLUMNS, "Cleared By", "Cleared By Name")
 
 
-def _write_report_v2(out_path, df, start_dt, end_dt, log=print):
+def _write_report_v2(out_path, df, start_dt, end_dt, cpan_roster=None, log=print):
     """Reporter=EXCLUDE_REPORTER is excluded from the Dockets sheet and its
     CPAN population, but their CPAN-DL and MAAN-TL dockets are both reinstated
     into Other (and the MAAN-TL ones additionally into MAAN) — visible in the
@@ -765,7 +802,12 @@ def _write_report_v2(out_path, df, start_dt, end_dt, log=print):
     since GCS mis-records their Date Submitted as 00:00 hrs regardless of
     actual booking time - confirmed against manually-verified data. Those
     dockets still appear normally in the Other/MAAN sheets below; only the
-    Final Report's own calculation excludes them."""
+    Final Report's own calculation excludes them.
+
+    cpan_roster: if given, "Total Resolved" (Final Report) and "Cleared This
+    Window"/"Dockets Cleared by Person" (Summary) only count dockets cleared
+    by roster IDs - anyone else's clearance falls back into "pending", since
+    only CPAN staff can validly resolve a docket. None = no filtering."""
     dltl_mask = _exclude_reporter_dltl_mask(df)
     df_for_final_report = df[~dltl_mask].reset_index(drop=True)
 
@@ -788,12 +830,12 @@ def _write_report_v2(out_path, df, start_dt, end_dt, log=print):
     sheets = [("CPAN", cpan_df), ("MAAN", maan_df), ("Other", other_df)]
 
     with pd.ExcelWriter(out_path, engine="openpyxl") as writer:
-        _write_final_report_sheet(writer, df_for_final_report, start_dt, end_dt)
+        _write_final_report_sheet(writer, df_for_final_report, start_dt, end_dt, cpan_roster=cpan_roster)
         _write_sheet(writer, df_main, "Dockets")
         for name, sheet_df in sheets:
             _write_sheet(writer, sheet_df, name)
 
-        summary_ws, next_row = _write_summary_sheet(writer, df)  # reflects all dockets, incl. EXCLUDE_REPORTER
+        summary_ws, next_row = _write_summary_sheet(writer, df, cpan_roster=cpan_roster)  # reflects all dockets, incl. EXCLUDE_REPORTER
         header_fill = PatternFill(start_color=HEADER_COLORS["Summary"], end_color=HEADER_COLORS["Summary"], fill_type="solid")
         cpan_staff_table, cpan_staff_cats, cpan_staff_aow = _pivot_summary_with_work(cpan_df, "SSA_NAME", "Work Type")
         _write_summary_table(
@@ -823,6 +865,12 @@ def generate_docket_report(date_str, output_path, log=print):
     regardless of actual booking time (confirmed against manually-verified
     data) - those dockets still appear normally in Other/MAAN.
 
+    If CPAN_STAFF_FILE (cpan_staff_ids.txt) has staff IDs listed, "Total
+    Resolved" and "Dockets Cleared by Person" only count dockets cleared by
+    those IDs - a docket cleared by anyone else falls back into "pending",
+    since only CPAN staff can validly resolve a docket. If the file is empty
+    or missing, no filtering is applied (counts everyone).
+
     Returns output_path."""
     username = os.environ["GCS_USERNAME"]
     password = os.environ["GCS_PASSWORD"]
@@ -833,8 +881,16 @@ def generate_docket_report(date_str, output_path, log=print):
     start_dt, end_dt = shift_window(date_str)
     df = _scrape_dockets(date_str, username, password, login_url, log=log)
 
+    cpan_roster = _load_cpan_staff_roster()
+    if cpan_roster is not None:
+        log(f"CPAN staff roster loaded ({len(cpan_roster)} IDs) - Total Resolved / Cleared by "
+            f"Person will only count dockets cleared by these IDs.")
+    else:
+        log("No CPAN staff roster configured (cpan_staff_ids.txt empty/missing) - "
+            "counting all resolvers as before.")
+
     log(f"Writing report (Reporter={EXCLUDE_REPORTER} excluded from Dockets/CPAN; "
         f"their CPAN-DL dockets reinstated into Other, MAAN-TL reinstated into MAAN)...")
-    _write_report_v2(output_path, df, start_dt, end_dt, log=log)
+    _write_report_v2(output_path, df, start_dt, end_dt, cpan_roster=cpan_roster, log=log)
 
     return output_path

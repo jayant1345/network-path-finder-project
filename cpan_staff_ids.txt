@@ -1,0 +1,13 @@
+# CPAN staff ID roster - one ID per line.
+# Once this file has at least one ID in it, the Docket Report's "Total
+# Resolved" (Final Report sheet) and "Dockets Cleared by Person" (Summary
+# sheet) will only count dockets resolved by IDs listed here. A docket
+# resolved by anyone not on this list falls back into "Total Pending
+# Dockets" instead.
+#
+# Leave this file as-is (no IDs, only comments) to keep the report counting
+# everyone, same as before this feature existed.
+#
+# Example:
+# 00800022
+# 00800474
