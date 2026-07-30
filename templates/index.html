@@ -1,905 +1,2254 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>CPAN Network Explorer · BSNL Gujarat</title>
-<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Syne:wght@400;600;700;800&display=swap" rel="stylesheet">
-<style>
-:root {
-  --bg: #f0f4f8;
-  --surface: #ffffff;
-  --surface2: #e8edf3;
-  --border: #c8d3df;
-  --accent: #0077cc;
-  --accent2: #6d28d9;
-  --green: #059669;
-  --red: #dc2626;
-  --amber: #d97706;
-  --text: #1e293b;
-  --muted: #475569;
-  --mono: 'JetBrains Mono', monospace;
-  --sans: 'Syne', sans-serif;
-}
-*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
-body{background:var(--bg);color:var(--text);font-family:var(--sans);min-height:100vh;overflow-x:hidden;font-size:15px}
-body::before{content:'';position:fixed;inset:0;background-image:linear-gradient(rgba(0,119,204,.04) 1px,transparent 1px),linear-gradient(90deg,rgba(0,119,204,.04) 1px,transparent 1px);background-size:40px 40px;pointer-events:none;z-index:0}
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CPAN Network Explorer · BSNL Gujarat</title>
+  <link
+    href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Syne:wght@400;600;700;800&display=swap"
+    rel="stylesheet">
+  <style>
+    :root {
+      --bg: #f0f4f8;
+      --surface: #ffffff;
+      --surface2: #e8edf3;
+      --border: #c8d3df;
+      --accent: #0077cc;
+      --accent2: #6d28d9;
+      --green: #059669;
+      --red: #dc2626;
+      --amber: #d97706;
+      --text: #1e293b;
+      --muted: #475569;
+      --mono: 'JetBrains Mono', monospace;
+      --sans: 'Syne', sans-serif;
+    }
 
-/* ── Header ── */
-header{position:relative;z-index:10;padding:14px 28px;display:flex;align-items:center;gap:14px;border-bottom:1px solid var(--border);background:#ffffff;box-shadow:0 2px 8px rgba(0,0,0,.08)}
-.logo-ring{width:42px;height:42px;border-radius:50%;border:2px solid var(--accent);display:flex;align-items:center;justify-content:center;font-size:20px;box-shadow:0 0 12px rgba(0,119,204,.2);animation:pulse-ring 3s ease-in-out infinite;flex-shrink:0}
-@keyframes pulse-ring{0%,100%{box-shadow:0 0 12px rgba(0,119,204,.2)}50%{box-shadow:0 0 22px rgba(0,119,204,.45)}}
-header h1{font-size:1.25rem;font-weight:800;letter-spacing:-.5px;color:var(--text)}
-header h1 span{color:var(--accent)}
-.header-right{margin-left:auto;display:flex;align-items:center;gap:10px}
-.header-badge{background:linear-gradient(135deg,var(--accent2),#4f46e5);padding:5px 14px;border-radius:100px;font-size:12px;font-weight:700;letter-spacing:1px;text-transform:uppercase;font-family:var(--mono);color:#fff}
+    *,
+    *::before,
+    *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0
+    }
 
-/* ── Upload Button ── */
-.btn-upload{
-  display:flex;align-items:center;gap:8px;
-  background:rgba(0,119,204,.08);
-  border:1px solid rgba(0,119,204,.3);
-  color:var(--accent);
-  border-radius:8px;
-  padding:9px 18px;
-  font-family:var(--mono);font-size:13px;font-weight:600;
-  cursor:pointer;transition:all .2s;white-space:nowrap;
-}
-.btn-upload:hover{background:rgba(0,119,204,.15);border-color:var(--accent);box-shadow:0 2px 8px rgba(0,119,204,.2)}
-.btn-upload svg{width:15px;height:15px;flex-shrink:0}
-/* #file-input handled by .drop-zone input[type=file] */
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--sans);
+      min-height: 100vh;
+      overflow-x: hidden;
+      font-size: 15px
+    }
 
-/* ── Upload Modal ── */
-.modal-overlay{
-  display:none;position:fixed;inset:0;z-index:100;
-  background:rgba(0,0,0,.4);backdrop-filter:blur(4px);
-  align-items:center;justify-content:center;
-  padding:20px 0;overflow-y:auto;
-}
-.modal-overlay.open{display:flex}
-.modal{
-  background:var(--surface);border:1px solid var(--border);border-radius:18px;
-  width:480px;max-width:94vw;overflow:hidden;
-  box-shadow:0 16px 48px rgba(0,0,0,.18);
-  animation:slide-up .22s ease;
-}
-@keyframes slide-up{from{transform:translateY(20px);opacity:0}to{transform:translateY(0);opacity:1}}
-.modal-top{
-  padding:20px 24px 18px;
-  background:var(--surface2);
-  border-bottom:1px solid var(--border);
-  display:flex;align-items:center;gap:10px;
-}
-.modal-top h3{font-size:1rem;font-weight:700;flex:1;color:var(--text)}
-.modal-top .close-btn{
-  background:none;border:none;color:var(--muted);cursor:pointer;
-  font-size:20px;line-height:1;padding:2px 6px;border-radius:6px;transition:color .15s;
-}
-.modal-top .close-btn:hover{color:var(--text)}
-.modal-body{padding:24px}
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background-image: linear-gradient(rgba(0, 119, 204, .04) 1px, transparent 1px), linear-gradient(90deg, rgba(0, 119, 204, .04) 1px, transparent 1px);
+      background-size: 40px 40px;
+      pointer-events: none;
+      z-index: 0
+    }
 
-/* Drop zone */
-.drop-zone{
-  border:2px dashed var(--border);border-radius:12px;
-  padding:32px 20px;text-align:center;cursor:pointer;
-  transition:all .2s;position:relative;
-}
-.drop-zone:hover,.drop-zone.dragover{border-color:var(--accent);background:rgba(0,119,204,.04)}
-.drop-zone input[type=file]{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%}
-.drop-icon{font-size:36px;margin-bottom:10px;display:block}
-.drop-zone p{font-size:14px;color:var(--muted);line-height:1.6;font-family:var(--mono)}
-.drop-zone strong{color:var(--accent)}
+    /* ── Header ── */
+    header {
+      position: relative;
+      z-index: 10;
+      padding: 14px 28px;
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      border-bottom: 1px solid var(--border);
+      background: #ffffff;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, .08)
+    }
 
-.file-info{
-  display:none;margin-top:14px;
-  background:rgba(0,212,255,.06);border:1px solid rgba(0,212,255,.2);
-  border-radius:8px;padding:12px 14px;
-  display:flex;align-items:center;gap:10px;
-  font-family:var(--mono);font-size:12px;
-}
-.file-info{display:none}
-.file-info.show{display:flex}
-.file-info .fname{flex:1;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.file-info .fsize{color:var(--muted);white-space:nowrap}
-.file-info .remove-file{background:none;border:none;color:var(--muted);cursor:pointer;font-size:16px;padding:0 2px}
-.file-info .remove-file:hover{color:var(--red)}
+    .logo-ring {
+      width: 42px;
+      height: 42px;
+      border-radius: 50%;
+      border: 2px solid var(--accent);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 20px;
+      box-shadow: 0 0 12px rgba(0, 119, 204, .2);
+      animation: pulse-ring 3s ease-in-out infinite;
+      flex-shrink: 0
+    }
 
-.modal-actions{display:flex;gap:10px;margin-top:18px}
-.btn-cancel{flex:1;background:none;border:1px solid var(--border);color:var(--muted);border-radius:8px;padding:10px;font-family:var(--sans);font-weight:600;font-size:14px;cursor:pointer;transition:all .2s}
-.btn-cancel:hover{border-color:var(--text);color:var(--text)}
-.btn-confirm{
-  flex:2;background:linear-gradient(135deg,var(--accent),#005fa3);
-  border:none;color:#fff;border-radius:8px;padding:10px;
-  font-family:var(--sans);font-weight:800;font-size:14px;
-  cursor:pointer;transition:opacity .2s;
-  display:flex;align-items:center;justify-content:center;gap:8px;
-}
-.btn-confirm:hover{opacity:.88}
-.btn-confirm:disabled{opacity:.4;cursor:not-allowed}
+    @keyframes pulse-ring {
 
-/* Upload progress */
-.upload-progress{display:none;margin-top:14px}
-.upload-progress.show{display:block}
-.prog-bar{height:4px;background:var(--border);border-radius:100px;overflow:hidden;margin-bottom:8px}
-.prog-fill{height:100%;width:0;background:linear-gradient(90deg,var(--accent),#0099cc);border-radius:100px;transition:width .3s}
-.prog-label{font-family:var(--mono);font-size:12px;color:var(--muted);text-align:center}
+      0%,
+      100% {
+        box-shadow: 0 0 12px rgba(0, 119, 204, .2)
+      }
 
-/* Upload result toast */
-.toast{
-  position:fixed;bottom:28px;right:28px;z-index:200;
-  background:var(--surface);border:1px solid var(--border);
-  border-radius:12px;padding:14px 18px;
-  display:flex;align-items:center;gap:12px;
-  box-shadow:0 6px 24px rgba(0,0,0,.15);
-  transform:translateY(80px);opacity:0;
-  transition:all .3s cubic-bezier(.34,1.56,.64,1);
-  font-family:var(--mono);font-size:14px;min-width:280px;max-width:380px;
-}
-.toast.show{transform:translateY(0);opacity:1}
-.toast.success{border-color:rgba(5,150,105,.4)}
-.toast.error  {border-color:rgba(220,38,38,.4)}
-.toast-icon{font-size:20px;flex-shrink:0}
-.toast-text{flex:1;line-height:1.4}
-.toast-text strong{display:block;color:var(--text);margin-bottom:2px}
-.toast-text span{color:var(--muted);font-size:12px}
+      50% {
+        box-shadow: 0 0 22px rgba(0, 119, 204, .45)
+      }
+    }
 
-/* ── Stats bar ── */
-#stats-bar{position:relative;z-index:5;display:flex;gap:1px;background:var(--border);border-bottom:1px solid var(--border)}
-.stat-cell{flex:1;background:var(--surface);padding:14px 22px;display:flex;flex-direction:column;gap:3px}
-.stat-cell .label{font-size:11px;font-family:var(--mono);color:var(--muted);text-transform:uppercase;letter-spacing:1px;font-weight:600}
-.stat-cell .value{font-size:1.5rem;font-weight:800;font-family:var(--mono);color:var(--accent)}
-.stat-cell.red .value{color:var(--red)}
-.stat-cell.green .value{color:var(--green)}
-.stat-cell .sublabel{font-size:11px;font-family:var(--mono);color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    header h1 {
+      font-size: 1.25rem;
+      font-weight: 800;
+      letter-spacing: -.5px;
+      color: var(--text)
+    }
 
-/* ── Tab Nav ── */
-.tab-nav{position:relative;z-index:5;display:flex;gap:0;background:var(--surface);border-bottom:2px solid var(--border);padding:0 28px}
-.tab-btn{background:none;border:none;color:var(--muted);font-family:var(--sans);font-size:14px;font-weight:700;letter-spacing:.3px;padding:14px 20px;cursor:pointer;border-bottom:3px solid transparent;margin-bottom:-2px;transition:all .2s;display:flex;align-items:center;gap:8px}
-.tab-btn:hover{color:var(--text)}
-.tab-btn.active{color:var(--accent);border-bottom-color:var(--accent)}
-.tab-badge{background:var(--surface2);color:var(--muted);padding:2px 8px;border-radius:100px;font-size:12px;font-family:var(--mono);font-weight:700}
-.tab-btn.active .tab-badge{background:rgba(0,119,204,.12);color:var(--accent)}
+    header h1 span {
+      color: var(--accent)
+    }
 
-/* ── Tab panels ── */
-.tab-panel{display:none;position:relative;z-index:5}
-.tab-panel.active{display:block}
+    .header-right {
+      margin-left: auto;
+      display: flex;
+      align-items: center;
+      gap: 10px
+    }
 
-/* ── Path Finder ── */
-.finder-wrap{max-width:1000px;margin:36px auto;padding:0 24px}
-.search-card{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:26px 28px 42px;margin-bottom:28px;position:relative}
-.search-card::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;background:linear-gradient(90deg,var(--accent),var(--accent2));border-radius:16px 16px 0 0}
-.search-card h2{font-size:.9rem;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:1.5px;font-family:var(--mono);margin-bottom:20px}
-.input-row{display:flex;gap:14px;align-items:flex-end;flex-wrap:wrap}
-.input-group{flex:1;min-width:160px;display:flex;flex-direction:column;gap:7px}
-.input-group label{font-size:12px;font-family:var(--mono);color:var(--muted);text-transform:uppercase;letter-spacing:1px;font-weight:600}
-.input-group input,.ac-wrap input{background:#f8fafc;border:1.5px solid var(--border);border-radius:8px;color:var(--text);font-family:var(--mono);font-size:18px;padding:12px 15px;outline:none;transition:border-color .2s,box-shadow .2s}
-.input-group input:focus,.ac-wrap input:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(0,119,204,.12);background:#fff}
-.input-group input::placeholder,.ac-wrap input::placeholder{color:#94a3b8}
-.btn-find{background:linear-gradient(135deg,var(--accent),#005fa3);color:#fff;border:none;border-radius:8px;font-family:var(--sans);font-size:15px;font-weight:800;padding:11px 26px;cursor:pointer;white-space:nowrap;transition:opacity .2s,transform .1s}
-.btn-find:hover{opacity:.88}
-.btn-find:active{transform:scale(.97)}
-#error-msg{background:rgba(220,38,38,.08);border:1px solid rgba(220,38,38,.3);color:var(--red);border-radius:8px;padding:13px 16px;font-family:var(--mono);font-size:14px;margin-bottom:20px;display:none}
+    .header-badge {
+      background: linear-gradient(135deg, var(--accent2), #4f46e5);
+      padding: 5px 14px;
+      border-radius: 100px;
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      font-family: var(--mono);
+      color: #fff
+    }
 
-/* ── Path Cards ── */
-.path-card{background:var(--surface);border:1.5px solid var(--border);border-radius:14px;margin-bottom:16px;overflow:hidden;transition:border-color .2s;box-shadow:0 2px 6px rgba(0,0,0,.06)}
-.path-card:hover{border-color:rgba(0,119,204,.4);box-shadow:0 4px 12px rgba(0,119,204,.1)}
-.path-card.best{border-color:var(--accent);box-shadow:0 4px 16px rgba(0,119,204,.15)}
-.path-header{display:flex;align-items:center;gap:12px;padding:14px 20px;background:var(--surface2);border-bottom:1.5px solid var(--border)}
-.path-num{width:30px;height:30px;border-radius:50%;background:var(--border);display:flex;align-items:center;justify-content:center;font-family:var(--mono);font-size:13px;font-weight:700;color:var(--text)}
-.path-card.best .path-num{background:rgba(0,119,204,.15);color:var(--accent)}
-.path-meta{display:flex;gap:8px;margin-left:auto;align-items:center;flex-wrap:wrap}
-.badge{padding:4px 11px;border-radius:100px;font-size:12px;font-family:var(--mono);font-weight:700}
-.badge.b10g{background:rgba(0,119,204,.12);color:var(--accent);border:1px solid rgba(0,119,204,.35)}
-.badge.bge{background:rgba(71,85,105,.1);color:var(--muted);border:1px solid var(--border)}
-.badge.bcir{background:rgba(5,150,105,.12);color:var(--green);border:1px solid rgba(5,150,105,.35)}
-.badge.bcir.mid{background:rgba(217,119,6,.12);color:var(--amber);border:1px solid rgba(217,119,6,.35)}
-.badge.bcir.high{background:rgba(220,38,38,.12);color:var(--red);border:1px solid rgba(220,38,38,.35)}
-.badge.best-badge{background:linear-gradient(135deg,rgba(0,119,204,.15),rgba(109,40,217,.15));color:var(--accent2);border:1px solid rgba(109,40,217,.3)}
-.hop-flow{padding:18px 20px;overflow-x:auto;background:#f8fafc}
-.hop-list{display:flex;align-items:center;flex-wrap:wrap;gap:0}
-.hop-node{display:flex;flex-direction:column;align-items:center}
-.hop-ip{background:#fff;border:1.5px solid var(--border);border-radius:8px;padding:8px 13px;font-family:var(--mono);font-size:14px;color:var(--text);font-weight:600;box-shadow:0 1px 3px rgba(0,0,0,.08)}
-.hop-connector{display:flex;flex-direction:column;align-items:center;padding:0 6px}
-.hop-line{width:36px;height:3px}
-.hop-line.is-10g{background:linear-gradient(90deg,var(--accent),#005fa3)}
-.hop-line.is-ge{background:var(--border)}
-.hop-bw-label{font-family:var(--mono);font-size:11px;font-weight:700;letter-spacing:.5px}
-.hop-bw-label.is-10g{color:var(--accent)}
-.hop-bw-label.is-ge{color:var(--muted)}
-.hop-cir-label{font-family:var(--mono);font-size:11px;color:var(--muted);font-weight:600}
-.hop-name{font-family:var(--sans);font-size:11px;color:var(--accent);font-weight:700;margin-top:4px;max-width:110px;text-align:center;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
-.ip-node-name{font-family:var(--sans);font-size:13px;font-weight:700;color:var(--accent);position:absolute;bottom:-22px;left:2px;white-space:nowrap;}
+    /* ── Upload Button ── */
+    .btn-upload {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      background: rgba(0, 119, 204, .08);
+      border: 1px solid rgba(0, 119, 204, .3);
+      color: var(--accent);
+      border-radius: 8px;
+      padding: 9px 18px;
+      font-family: var(--mono);
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all .2s;
+      white-space: nowrap;
+    }
 
-/* ── Table Panel ── */
-.table-wrap{padding:24px 30px}
-.panel-title{font-size:.9rem;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:1.5px;font-family:var(--mono);margin-bottom:16px;display:flex;align-items:center;gap:10px}
-.panel-title .dot{width:9px;height:9px;border-radius:50%;background:var(--green);box-shadow:0 0 6px var(--green)}
-.panel-title .dot.red{background:var(--red);box-shadow:0 0 6px var(--red);animation:blink 1.4s ease-in-out infinite}
-@keyframes blink{0%,100%{opacity:1}50%{opacity:.3}}
-.filter-bar{display:flex;gap:10px;margin-bottom:14px}
-.filter-bar input{background:#fff;border:1.5px solid var(--border);border-radius:8px;color:var(--text);font-family:var(--mono);font-size:14px;padding:9px 14px;outline:none;flex:1;transition:border-color .2s}
-.filter-bar input:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(0,119,204,.1)}
-.table-scroll{overflow-x:auto;border-radius:12px;border:1.5px solid var(--border);box-shadow:0 2px 8px rgba(0,0,0,.06)}
-table{width:100%;border-collapse:collapse;font-family:var(--mono);font-size:13px}
-thead tr{background:var(--surface2)}
-thead th{padding:11px 14px;text-align:left;color:var(--muted);font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;white-space:nowrap;border-bottom:1.5px solid var(--border)}
-tbody tr{border-bottom:1px solid var(--border);transition:background .15s}
-tbody tr:hover{background:#f0f7ff}
-tbody tr:last-child{border-bottom:none}
-tbody td{padding:10px 14px;vertical-align:middle;color:var(--text)}
-tbody tr.row-critical{background:rgba(220,38,38,.05)}
-tbody tr.row-critical:hover{background:rgba(220,38,38,.1)}
-tbody tr.row-warning{background:rgba(217,119,6,.05)}
-.alarm-badge{padding:3px 9px;border-radius:100px;font-size:11px;font-weight:700}
-.alarm-badge.critical{background:rgba(220,38,38,.12);color:var(--red);border:1px solid rgba(220,38,38,.35)}
-.alarm-badge.warning{background:rgba(217,119,6,.12);color:var(--amber);border:1px solid rgba(217,119,6,.35)}
-.cir-bar-wrap{display:flex;align-items:center;gap:8px}
-.cir-bar{flex:1;height:7px;border-radius:100px;background:var(--surface2);overflow:hidden;min-width:50px;border:1px solid var(--border)}
-.cir-fill{height:100%;border-radius:100px;transition:width .4s}
-.cir-fill.low{background:var(--green)}
-.cir-fill.mid{background:var(--amber)}
-.cir-fill.high{background:var(--red)}
-.cir-pct{font-size:12px;font-weight:700;white-space:nowrap;min-width:36px;text-align:right}
-.cir-pct.low{color:var(--green)}
-.cir-pct.mid{color:var(--amber)}
-.cir-pct.high{color:var(--red)}
-.bw-chip{padding:3px 9px;border-radius:100px;font-size:11px;font-weight:700;letter-spacing:.5px}
-.bw-chip.g10{background:rgba(0,119,204,.12);color:var(--accent);border:1px solid rgba(0,119,204,.3)}
-.bw-chip.ge{background:rgba(71,85,105,.1);color:var(--muted);border:1px solid var(--border)}
-.loading{text-align:center;padding:40px;color:var(--muted);font-family:var(--mono);font-size:14px}
-.spinner{display:inline-block;width:18px;height:18px;border:2px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin .7s linear infinite;margin-right:8px;vertical-align:middle}
-@keyframes spin{to{transform:rotate(360deg)}}
-.cell-name{max-width:300px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--text)}
-.cell-ip{max-width:170px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--muted);font-size:12px}
+    .btn-upload:hover {
+      background: rgba(0, 119, 204, .15);
+      border-color: var(--accent);
+      box-shadow: 0 2px 8px rgba(0, 119, 204, .2)
+    }
 
-/* ── Clear button ── */
-.btn-clear{
-  background:rgba(5,150,105,.08);border:1.5px solid rgba(5,150,105,.3);
-  color:var(--green);border-radius:8px;padding:11px 20px;
-  font-family:var(--mono);font-size:14px;font-weight:700;
-  cursor:pointer;transition:all .2s;
-}
-.btn-clear:hover{background:rgba(5,150,105,.16);border-color:var(--green);}
+    .btn-upload svg {
+      width: 15px;
+      height: 15px;
+      flex-shrink: 0
+    }
 
-/* ── Report Modal scroll fix ── */
-.rpt-modal{
-  display:flex;flex-direction:column;
-  max-height:92vh;
-}
-.rpt-modal .modal-body{
-  overflow-y:auto;
-  flex:1;
-}
+    /* #file-input handled by .drop-zone input[type=file] */
 
-/* ── Output Folder Button ── */
-.btn-outfolder{
-  display:flex;align-items:center;gap:8px;
-  background:rgba(234,179,8,.1);
-  border:1px solid rgba(234,179,8,.4);
-  color:#b45309;
-  border-radius:8px;
-  padding:9px 18px;
-  font-family:var(--mono);font-size:13px;font-weight:600;
-  cursor:pointer;transition:all .2s;white-space:nowrap;
-}
-.btn-outfolder:hover{background:rgba(234,179,8,.2);border-color:#b45309;box-shadow:0 2px 8px rgba(234,179,8,.2)}
-.btn-outfolder svg{width:15px;height:15px;flex-shrink:0}
+    /* ── Upload Modal ── */
+    .modal-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      z-index: 100;
+      background: rgba(0, 0, 0, .4);
+      backdrop-filter: blur(4px);
+      align-items: center;
+      justify-content: center;
+      padding: 20px 0;
+      overflow-y: auto;
+    }
 
-/* ── Report Generator Button ── */
-.btn-report{
-  display:flex;align-items:center;gap:8px;
-  background:rgba(46,204,113,.1);
-  border:1px solid rgba(46,204,113,.35);
-  color:#059669;
-  border-radius:8px;
-  padding:9px 18px;
-  font-family:var(--mono);font-size:13px;font-weight:600;
-  cursor:pointer;transition:all .2s;white-space:nowrap;
-}
-.btn-report:hover{background:rgba(46,204,113,.2);border-color:#059669;box-shadow:0 2px 8px rgba(46,204,113,.2)}
-.btn-report svg{width:15px;height:15px;flex-shrink:0}
+    .modal-overlay.open {
+      display: flex
+    }
 
-/* ── Docket Report Button ── */
-.btn-docket{
-  display:flex;align-items:center;gap:8px;
-  background:rgba(234,88,12,.1);
-  border:1px solid rgba(234,88,12,.35);
-  color:#c2410c;
-  border-radius:8px;
-  padding:9px 18px;
-  font-family:var(--mono);font-size:13px;font-weight:600;
-  cursor:pointer;transition:all .2s;white-space:nowrap;
-}
-.btn-docket:hover{background:rgba(234,88,12,.2);border-color:#c2410c;box-shadow:0 2px 8px rgba(234,88,12,.2)}
-.btn-docket svg{width:15px;height:15px;flex-shrink:0}
+    .modal {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 18px;
+      width: 480px;
+      max-width: 94vw;
+      overflow: hidden;
+      box-shadow: 0 16px 48px rgba(0, 0, 0, .18);
+      animation: slide-up .22s ease;
+    }
 
-/* ── Report Modal ── */
-.rpt-modal{width:620px;max-width:96vw}
-.rpt-section{margin-bottom:18px}
-.rpt-label{font-size:11px;font-family:var(--mono);color:var(--muted);text-transform:uppercase;letter-spacing:1px;font-weight:600;margin-bottom:6px;display:block}
-.rpt-row{display:flex;gap:8px;align-items:center}
-.rpt-input{
-  flex:1;background:#f8fafc;border:1.5px solid var(--border);border-radius:8px;
-  color:var(--text);font-family:var(--mono);font-size:13px;padding:9px 12px;
-  outline:none;transition:border-color .2s;
-}
-.rpt-input:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(0,119,204,.1)}
-.rpt-select{
-  background:#f8fafc;border:1.5px solid var(--border);border-radius:8px;
-  color:var(--text);font-family:var(--mono);font-size:13px;padding:8px 10px;
-  outline:none;cursor:pointer;transition:border-color .2s;
-}
-.rpt-select:focus{border-color:var(--accent)}
-.btn-scan{
-  background:rgba(109,40,217,.1);border:1px solid rgba(109,40,217,.3);
-  color:var(--accent2);border-radius:8px;padding:9px 16px;
-  font-family:var(--mono);font-size:13px;font-weight:700;
-  cursor:pointer;transition:all .2s;white-space:nowrap;
-}
-.btn-scan:hover{background:rgba(109,40,217,.18);border-color:var(--accent2)}
-.rpt-file-grid{display:grid;gap:6px;margin-top:2px}
-.rpt-file-row{
-  display:flex;align-items:center;gap:10px;
-  background:#f8fafc;border:1px solid var(--border);border-radius:8px;
-  padding:8px 12px;font-family:var(--mono);font-size:12px;
-}
-.rpt-file-label{min-width:145px;color:var(--muted);font-weight:600}
-.rpt-file-name{flex:1;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:11px}
-.rpt-file-status{font-size:13px;flex-shrink:0}
-.rpt-upload-btn{
-  cursor:pointer;font-size:11px;color:var(--accent);padding:2px 7px;
-  border-radius:4px;border:1px solid rgba(0,119,204,.3);background:rgba(0,119,204,.06);
-  white-space:nowrap;flex-shrink:0;transition:all .15s;
-}
-.rpt-upload-btn:hover{background:rgba(0,119,204,.18);border-color:var(--accent)}
-.rpt-tmpl-bar{
-  display:flex;align-items:center;gap:8px;
-  background:#f0fdf4;border:1px solid rgba(5,150,105,.25);border-radius:8px;
-  padding:8px 12px;font-family:var(--mono);font-size:12px;color:var(--green);
-}
-.rpt-tmpl-bar.missing{background:#fff5f5;border-color:rgba(220,38,38,.25);color:var(--red)}
-.rpt-log{
-  height:100px;overflow-y:auto;
-  background:#0f1720;border:1px solid var(--border);border-radius:8px;
-  padding:10px 12px;font-family:var(--mono);font-size:12px;color:#b2bec3;
-  white-space:pre-wrap;line-height:1.5;
-}
-.rpt-sep{border:none;border-top:1px solid var(--border);margin:16px 0}
-.btn-generate{
-  flex:2;background:linear-gradient(135deg,#059669,#047857);
-  border:none;color:#fff;border-radius:8px;padding:11px;
-  font-family:var(--sans);font-weight:800;font-size:14px;
-  cursor:pointer;transition:opacity .2s;
-  display:flex;align-items:center;justify-content:center;gap:8px;
-}
-.btn-generate:hover{opacity:.88}
-.btn-generate:disabled{opacity:.4;cursor:not-allowed}
-.btn-download{
-  display:none;flex:1;
-  background:linear-gradient(135deg,var(--accent),#005fa3);
-  border:none;color:#fff;border-radius:8px;padding:11px;
-  font-family:var(--sans);font-weight:800;font-size:14px;
-  cursor:pointer;transition:opacity .2s;text-decoration:none;
-  align-items:center;justify-content:center;gap:8px;
-}
-.btn-download.show{display:flex}
-.btn-download:hover{opacity:.88}
+    @keyframes slide-up {
+      from {
+        transform: translateY(20px);
+        opacity: 0
+      }
 
-/* ── IP Autocomplete ── */
-.ac-wrap{position:relative;flex:1;min-width:160px;display:flex;flex-direction:column;gap:6px}
-.ac-wrap label{font-size:12px;font-family:var(--mono);color:var(--muted);text-transform:uppercase;letter-spacing:1px;font-weight:600}
-.ac-dropdown{
-  display:none;position:absolute;top:100%;left:0;right:0;z-index:50;
-  background:#fff;border:1.5px solid var(--accent);border-top:none;
-  border-radius:0 0 8px 8px;max-height:220px;overflow-y:auto;
-  box-shadow:0 8px 24px rgba(0,0,0,.12);
-}
-.ac-dropdown.open{display:block}
-.ac-item{
-  padding:9px 14px;font-family:var(--mono);font-size:14px;color:var(--text);
-  cursor:pointer;transition:background .12s;
-}
-.ac-item:hover,.ac-item.active{background:rgba(0,119,204,.08);color:var(--accent)}
-.ac-item mark{background:none;color:var(--accent);font-weight:700}
-</style>
+      to {
+        transform: translateY(0);
+        opacity: 1
+      }
+    }
+
+    .modal-top {
+      padding: 20px 24px 18px;
+      background: var(--surface2);
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .modal-top h3 {
+      font-size: 1rem;
+      font-weight: 700;
+      flex: 1;
+      color: var(--text)
+    }
+
+    .modal-top .close-btn {
+      background: none;
+      border: none;
+      color: var(--muted);
+      cursor: pointer;
+      font-size: 20px;
+      line-height: 1;
+      padding: 2px 6px;
+      border-radius: 6px;
+      transition: color .15s;
+    }
+
+    .modal-top .close-btn:hover {
+      color: var(--text)
+    }
+
+    .modal-body {
+      padding: 24px
+    }
+
+    /* Drop zone */
+    .drop-zone {
+      border: 2px dashed var(--border);
+      border-radius: 12px;
+      padding: 32px 20px;
+      text-align: center;
+      cursor: pointer;
+      transition: all .2s;
+      position: relative;
+    }
+
+    .drop-zone:hover,
+    .drop-zone.dragover {
+      border-color: var(--accent);
+      background: rgba(0, 119, 204, .04)
+    }
+
+    .drop-zone input[type=file] {
+      position: absolute;
+      inset: 0;
+      opacity: 0;
+      cursor: pointer;
+      width: 100%;
+      height: 100%
+    }
+
+    .drop-icon {
+      font-size: 36px;
+      margin-bottom: 10px;
+      display: block
+    }
+
+    .drop-zone p {
+      font-size: 14px;
+      color: var(--muted);
+      line-height: 1.6;
+      font-family: var(--mono)
+    }
+
+    .drop-zone strong {
+      color: var(--accent)
+    }
+
+    .file-info {
+      display: none;
+      margin-top: 14px;
+      background: rgba(0, 212, 255, .06);
+      border: 1px solid rgba(0, 212, 255, .2);
+      border-radius: 8px;
+      padding: 12px 14px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-family: var(--mono);
+      font-size: 12px;
+    }
+
+    .file-info {
+      display: none
+    }
+
+    .file-info.show {
+      display: flex
+    }
+
+    .file-info .fname {
+      flex: 1;
+      color: var(--text);
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap
+    }
+
+    .file-info .fsize {
+      color: var(--muted);
+      white-space: nowrap
+    }
+
+    .file-info .remove-file {
+      background: none;
+      border: none;
+      color: var(--muted);
+      cursor: pointer;
+      font-size: 16px;
+      padding: 0 2px
+    }
+
+    .file-info .remove-file:hover {
+      color: var(--red)
+    }
+
+    .modal-actions {
+      display: flex;
+      gap: 10px;
+      margin-top: 18px
+    }
+
+    .btn-cancel {
+      flex: 1;
+      background: none;
+      border: 1px solid var(--border);
+      color: var(--muted);
+      border-radius: 8px;
+      padding: 10px;
+      font-family: var(--sans);
+      font-weight: 600;
+      font-size: 14px;
+      cursor: pointer;
+      transition: all .2s
+    }
+
+    .btn-cancel:hover {
+      border-color: var(--text);
+      color: var(--text)
+    }
+
+    .btn-confirm {
+      flex: 2;
+      background: linear-gradient(135deg, var(--accent), #005fa3);
+      border: none;
+      color: #fff;
+      border-radius: 8px;
+      padding: 10px;
+      font-family: var(--sans);
+      font-weight: 800;
+      font-size: 14px;
+      cursor: pointer;
+      transition: opacity .2s;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+    }
+
+    .btn-confirm:hover {
+      opacity: .88
+    }
+
+    .btn-confirm:disabled {
+      opacity: .4;
+      cursor: not-allowed
+    }
+
+    /* Upload progress */
+    .upload-progress {
+      display: none;
+      margin-top: 14px
+    }
+
+    .upload-progress.show {
+      display: block
+    }
+
+    .prog-bar {
+      height: 4px;
+      background: var(--border);
+      border-radius: 100px;
+      overflow: hidden;
+      margin-bottom: 8px
+    }
+
+    .prog-fill {
+      height: 100%;
+      width: 0;
+      background: linear-gradient(90deg, var(--accent), #0099cc);
+      border-radius: 100px;
+      transition: width .3s
+    }
+
+    .prog-label {
+      font-family: var(--mono);
+      font-size: 12px;
+      color: var(--muted);
+      text-align: center
+    }
+
+    /* Upload result toast */
+    .toast {
+      position: fixed;
+      bottom: 28px;
+      right: 28px;
+      z-index: 200;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 14px 18px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      box-shadow: 0 6px 24px rgba(0, 0, 0, .15);
+      transform: translateY(80px);
+      opacity: 0;
+      transition: all .3s cubic-bezier(.34, 1.56, .64, 1);
+      font-family: var(--mono);
+      font-size: 14px;
+      min-width: 280px;
+      max-width: 380px;
+    }
+
+    .toast.show {
+      transform: translateY(0);
+      opacity: 1
+    }
+
+    .toast.success {
+      border-color: rgba(5, 150, 105, .4)
+    }
+
+    .toast.error {
+      border-color: rgba(220, 38, 38, .4)
+    }
+
+    .toast-icon {
+      font-size: 20px;
+      flex-shrink: 0
+    }
+
+    .toast-text {
+      flex: 1;
+      line-height: 1.4
+    }
+
+    .toast-text strong {
+      display: block;
+      color: var(--text);
+      margin-bottom: 2px
+    }
+
+    .toast-text span {
+      color: var(--muted);
+      font-size: 12px
+    }
+
+    /* ── Stats bar ── */
+    #stats-bar {
+      position: relative;
+      z-index: 5;
+      display: flex;
+      gap: 1px;
+      background: var(--border);
+      border-bottom: 1px solid var(--border)
+    }
+
+    .stat-cell {
+      flex: 1;
+      background: var(--surface);
+      padding: 14px 22px;
+      display: flex;
+      flex-direction: column;
+      gap: 3px
+    }
+
+    .stat-cell .label {
+      font-size: 11px;
+      font-family: var(--mono);
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      font-weight: 600
+    }
+
+    .stat-cell .value {
+      font-size: 1.5rem;
+      font-weight: 800;
+      font-family: var(--mono);
+      color: var(--accent)
+    }
+
+    .stat-cell.red .value {
+      color: var(--red)
+    }
+
+    .stat-cell.green .value {
+      color: var(--green)
+    }
+
+    .stat-cell .sublabel {
+      font-size: 11px;
+      font-family: var(--mono);
+      color: var(--muted);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis
+    }
+
+    /* ── Tab Nav ── */
+    .tab-nav {
+      position: relative;
+      z-index: 5;
+      display: flex;
+      gap: 0;
+      background: var(--surface);
+      border-bottom: 2px solid var(--border);
+      padding: 0 28px
+    }
+
+    .tab-btn {
+      background: none;
+      border: none;
+      color: var(--muted);
+      font-family: var(--sans);
+      font-size: 14px;
+      font-weight: 700;
+      letter-spacing: .3px;
+      padding: 14px 20px;
+      cursor: pointer;
+      border-bottom: 3px solid transparent;
+      margin-bottom: -2px;
+      transition: all .2s;
+      display: flex;
+      align-items: center;
+      gap: 8px
+    }
+
+    .tab-btn:hover {
+      color: var(--text)
+    }
+
+    .tab-btn.active {
+      color: var(--accent);
+      border-bottom-color: var(--accent)
+    }
+
+    .tab-badge {
+      background: var(--surface2);
+      color: var(--muted);
+      padding: 2px 8px;
+      border-radius: 100px;
+      font-size: 12px;
+      font-family: var(--mono);
+      font-weight: 700
+    }
+
+    .tab-btn.active .tab-badge {
+      background: rgba(0, 119, 204, .12);
+      color: var(--accent)
+    }
+
+    /* ── Tab panels ── */
+    .tab-panel {
+      display: none;
+      position: relative;
+      z-index: 5
+    }
+
+    .tab-panel.active {
+      display: block
+    }
+
+    /* ── File Transfer ── */
+    .xfer-wrap { max-width:1000px;margin:36px auto;padding:0 24px }
+    .xfer-login-card { background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:32px;max-width:440px;margin:40px auto;text-align:center }
+    .xfer-login-card h2 { font-size:1.1rem;margin-bottom:10px }
+    .xfer-hint { color:var(--muted);font-size:13px;line-height:1.6;margin-bottom:20px }
+    .xfer-login-row { display:flex;gap:10px }
+    .xfer-login-row input { flex:1;background:#f8fafc;border:1.5px solid var(--border);border-radius:8px;color:var(--text);font-family:var(--mono);font-size:15px;padding:11px 14px;outline:none }
+    .xfer-login-row input:focus { border-color:var(--accent);box-shadow:0 0 0 3px rgba(0,119,204,.12) }
+    .xfer-login-error { color:var(--red);font-size:12px;font-family:var(--mono);margin-top:10px;min-height:16px }
+    .xfer-toolbar { display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;margin-bottom:18px }
+    .xfer-breadcrumb { font-family:var(--mono);font-size:14px;color:var(--muted);display:flex;align-items:center;gap:4px;flex-wrap:wrap }
+    .xfer-breadcrumb a { color:var(--accent);cursor:pointer;text-decoration:none }
+    .xfer-breadcrumb a:hover { text-decoration:underline }
+    .xfer-breadcrumb span.sep { color:var(--border) }
+    .xfer-toolbar-actions { display:flex;gap:8px;flex-wrap:wrap }
+    #xfer-drop-zone { padding:22px 20px }
+    .xfer-row-icon { font-size:16px }
+    .xfer-folder-link { color:var(--accent);cursor:pointer;font-weight:600 }
+    .xfer-folder-link:hover { text-decoration:underline }
+    .xfer-action-btn { background:none;border:1px solid var(--border);color:var(--muted);border-radius:6px;padding:5px 9px;font-size:12px;cursor:pointer;margin-right:6px;transition:all .15s }
+    .xfer-action-btn:hover { border-color:var(--accent);color:var(--accent);background:rgba(0,119,204,.08) }
+    .xfer-action-btn.danger:hover { border-color:var(--red);color:var(--red);background:rgba(220,38,38,.08) }
+
+    /* ── Path Finder ── */
+    .finder-wrap {
+      max-width: 1000px;
+      margin: 36px auto;
+      padding: 0 24px
+    }
+
+    .search-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 26px 28px 42px;
+      margin-bottom: 28px;
+      position: relative
+    }
+
+    .search-card::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 3px;
+      background: linear-gradient(90deg, var(--accent), var(--accent2));
+      border-radius: 16px 16px 0 0
+    }
+
+    .search-card h2 {
+      font-size: .9rem;
+      font-weight: 700;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 1.5px;
+      font-family: var(--mono);
+      margin-bottom: 20px
+    }
+
+    .input-row {
+      display: flex;
+      gap: 14px;
+      align-items: flex-end;
+      flex-wrap: wrap
+    }
+
+    .input-group {
+      flex: 1;
+      min-width: 160px;
+      display: flex;
+      flex-direction: column;
+      gap: 7px
+    }
+
+    .input-group label {
+      font-size: 12px;
+      font-family: var(--mono);
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      font-weight: 600
+    }
+
+    .input-group input,
+    .ac-wrap input {
+      background: #f8fafc;
+      border: 1.5px solid var(--border);
+      border-radius: 8px;
+      color: var(--text);
+      font-family: var(--mono);
+      font-size: 18px;
+      padding: 12px 15px;
+      outline: none;
+      transition: border-color .2s, box-shadow .2s
+    }
+
+    .input-group input:focus,
+    .ac-wrap input:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px rgba(0, 119, 204, .12);
+      background: #fff
+    }
+
+    .input-group input::placeholder,
+    .ac-wrap input::placeholder {
+      color: #94a3b8
+    }
+
+    .btn-find {
+      background: linear-gradient(135deg, var(--accent), #005fa3);
+      color: #fff;
+      border: none;
+      border-radius: 8px;
+      font-family: var(--sans);
+      font-size: 15px;
+      font-weight: 800;
+      padding: 11px 26px;
+      cursor: pointer;
+      white-space: nowrap;
+      transition: opacity .2s, transform .1s
+    }
+
+    .btn-find:hover {
+      opacity: .88
+    }
+
+    .btn-find:active {
+      transform: scale(.97)
+    }
+
+    #error-msg {
+      background: rgba(220, 38, 38, .08);
+      border: 1px solid rgba(220, 38, 38, .3);
+      color: var(--red);
+      border-radius: 8px;
+      padding: 13px 16px;
+      font-family: var(--mono);
+      font-size: 14px;
+      margin-bottom: 20px;
+      display: none
+    }
+
+    /* ── Path Cards ── */
+    .path-card {
+      background: var(--surface);
+      border: 1.5px solid var(--border);
+      border-radius: 14px;
+      margin-bottom: 16px;
+      overflow: hidden;
+      transition: border-color .2s;
+      box-shadow: 0 2px 6px rgba(0, 0, 0, .06)
+    }
+
+    .path-card:hover {
+      border-color: rgba(0, 119, 204, .4);
+      box-shadow: 0 4px 12px rgba(0, 119, 204, .1)
+    }
+
+    .path-card.best {
+      border-color: var(--accent);
+      box-shadow: 0 4px 16px rgba(0, 119, 204, .15)
+    }
+
+    .path-header {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 14px 20px;
+      background: var(--surface2);
+      border-bottom: 1.5px solid var(--border)
+    }
+
+    .path-num {
+      width: 30px;
+      height: 30px;
+      border-radius: 50%;
+      background: var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: var(--mono);
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--text)
+    }
+
+    .path-card.best .path-num {
+      background: rgba(0, 119, 204, .15);
+      color: var(--accent)
+    }
+
+    .path-meta {
+      display: flex;
+      gap: 8px;
+      margin-left: auto;
+      align-items: center;
+      flex-wrap: wrap
+    }
+
+    .badge {
+      padding: 4px 11px;
+      border-radius: 100px;
+      font-size: 12px;
+      font-family: var(--mono);
+      font-weight: 700
+    }
+
+    .badge.b10g {
+      background: rgba(0, 119, 204, .12);
+      color: var(--accent);
+      border: 1px solid rgba(0, 119, 204, .35)
+    }
+
+    .badge.bge {
+      background: rgba(71, 85, 105, .1);
+      color: var(--muted);
+      border: 1px solid var(--border)
+    }
+
+    .badge.bcir {
+      background: rgba(5, 150, 105, .12);
+      color: var(--green);
+      border: 1px solid rgba(5, 150, 105, .35)
+    }
+
+    .badge.bcir.mid {
+      background: rgba(217, 119, 6, .12);
+      color: var(--amber);
+      border: 1px solid rgba(217, 119, 6, .35)
+    }
+
+    .badge.bcir.high {
+      background: rgba(220, 38, 38, .12);
+      color: var(--red);
+      border: 1px solid rgba(220, 38, 38, .35)
+    }
+
+    .badge.best-badge {
+      background: linear-gradient(135deg, rgba(0, 119, 204, .15), rgba(109, 40, 217, .15));
+      color: var(--accent2);
+      border: 1px solid rgba(109, 40, 217, .3)
+    }
+
+    .hop-flow {
+      padding: 18px 20px;
+      overflow-x: auto;
+      background: #f8fafc
+    }
+
+    .hop-list {
+      display: flex;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 0
+    }
+
+    .hop-node {
+      display: flex;
+      flex-direction: column;
+      align-items: center
+    }
+
+    .hop-ip {
+      background: #fff;
+      border: 1.5px solid var(--border);
+      border-radius: 8px;
+      padding: 8px 13px;
+      font-family: var(--mono);
+      font-size: 14px;
+      color: var(--text);
+      font-weight: 600;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, .08)
+    }
+
+    .hop-connector {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 0 6px
+    }
+
+    .hop-line {
+      width: 36px;
+      height: 3px
+    }
+
+    .hop-line.is-10g {
+      background: linear-gradient(90deg, var(--accent), #005fa3)
+    }
+
+    .hop-line.is-ge {
+      background: var(--border)
+    }
+
+    .hop-bw-label {
+      font-family: var(--mono);
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: .5px
+    }
+
+    .hop-bw-label.is-10g {
+      color: var(--accent)
+    }
+
+    .hop-bw-label.is-ge {
+      color: var(--muted)
+    }
+
+    .hop-cir-label {
+      font-family: var(--mono);
+      font-size: 11px;
+      color: var(--muted);
+      font-weight: 600
+    }
+
+    .hop-name {
+      font-family: var(--sans);
+      font-size: 11px;
+      color: var(--accent);
+      font-weight: 700;
+      margin-top: 4px;
+      max-width: 110px;
+      text-align: center;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .ip-node-name {
+      font-family: var(--sans);
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--accent);
+      position: absolute;
+      bottom: -22px;
+      left: 2px;
+      white-space: nowrap;
+    }
+
+    /* ── Table Panel ── */
+    .table-wrap {
+      padding: 24px 30px
+    }
+
+    .panel-title {
+      font-size: .9rem;
+      font-weight: 700;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 1.5px;
+      font-family: var(--mono);
+      margin-bottom: 16px;
+      display: flex;
+      align-items: center;
+      gap: 10px
+    }
+
+    .panel-title .dot {
+      width: 9px;
+      height: 9px;
+      border-radius: 50%;
+      background: var(--green);
+      box-shadow: 0 0 6px var(--green)
+    }
+
+    .panel-title .dot.red {
+      background: var(--red);
+      box-shadow: 0 0 6px var(--red);
+      animation: blink 1.4s ease-in-out infinite
+    }
+
+    @keyframes blink {
+
+      0%,
+      100% {
+        opacity: 1
+      }
+
+      50% {
+        opacity: .3
+      }
+    }
+
+    .filter-bar {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 14px
+    }
+
+    .filter-bar input {
+      background: #fff;
+      border: 1.5px solid var(--border);
+      border-radius: 8px;
+      color: var(--text);
+      font-family: var(--mono);
+      font-size: 14px;
+      padding: 9px 14px;
+      outline: none;
+      flex: 1;
+      transition: border-color .2s
+    }
+
+    .filter-bar input:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px rgba(0, 119, 204, .1)
+    }
+
+    .table-scroll {
+      overflow-x: auto;
+      border-radius: 12px;
+      border: 1.5px solid var(--border);
+      box-shadow: 0 2px 8px rgba(0, 0, 0, .06)
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-family: var(--mono);
+      font-size: 13px
+    }
+
+    thead tr {
+      background: var(--surface2)
+    }
+
+    thead th {
+      padding: 11px 14px;
+      text-align: left;
+      color: var(--muted);
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      white-space: nowrap;
+      border-bottom: 1.5px solid var(--border)
+    }
+
+    tbody tr {
+      border-bottom: 1px solid var(--border);
+      transition: background .15s
+    }
+
+    tbody tr:hover {
+      background: #f0f7ff
+    }
+
+    tbody tr:last-child {
+      border-bottom: none
+    }
+
+    tbody td {
+      padding: 10px 14px;
+      vertical-align: middle;
+      color: var(--text)
+    }
+
+    tbody tr.row-critical {
+      background: rgba(220, 38, 38, .05)
+    }
+
+    tbody tr.row-critical:hover {
+      background: rgba(220, 38, 38, .1)
+    }
+
+    tbody tr.row-warning {
+      background: rgba(217, 119, 6, .05)
+    }
+
+    .alarm-badge {
+      padding: 3px 9px;
+      border-radius: 100px;
+      font-size: 11px;
+      font-weight: 700
+    }
+
+    .alarm-badge.critical {
+      background: rgba(220, 38, 38, .12);
+      color: var(--red);
+      border: 1px solid rgba(220, 38, 38, .35)
+    }
+
+    .alarm-badge.warning {
+      background: rgba(217, 119, 6, .12);
+      color: var(--amber);
+      border: 1px solid rgba(217, 119, 6, .35)
+    }
+
+    .cir-bar-wrap {
+      display: flex;
+      align-items: center;
+      gap: 8px
+    }
+
+    .cir-bar {
+      flex: 1;
+      height: 7px;
+      border-radius: 100px;
+      background: var(--surface2);
+      overflow: hidden;
+      min-width: 50px;
+      border: 1px solid var(--border)
+    }
+
+    .cir-fill {
+      height: 100%;
+      border-radius: 100px;
+      transition: width .4s
+    }
+
+    .cir-fill.low {
+      background: var(--green)
+    }
+
+    .cir-fill.mid {
+      background: var(--amber)
+    }
+
+    .cir-fill.high {
+      background: var(--red)
+    }
+
+    .cir-pct {
+      font-size: 12px;
+      font-weight: 700;
+      white-space: nowrap;
+      min-width: 36px;
+      text-align: right
+    }
+
+    .cir-pct.low {
+      color: var(--green)
+    }
+
+    .cir-pct.mid {
+      color: var(--amber)
+    }
+
+    .cir-pct.high {
+      color: var(--red)
+    }
+
+    .bw-chip {
+      padding: 3px 9px;
+      border-radius: 100px;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: .5px
+    }
+
+    .bw-chip.g10 {
+      background: rgba(0, 119, 204, .12);
+      color: var(--accent);
+      border: 1px solid rgba(0, 119, 204, .3)
+    }
+
+    .bw-chip.ge {
+      background: rgba(71, 85, 105, .1);
+      color: var(--muted);
+      border: 1px solid var(--border)
+    }
+
+    .loading {
+      text-align: center;
+      padding: 40px;
+      color: var(--muted);
+      font-family: var(--mono);
+      font-size: 14px
+    }
+
+    .spinner {
+      display: inline-block;
+      width: 18px;
+      height: 18px;
+      border: 2px solid var(--border);
+      border-top-color: var(--accent);
+      border-radius: 50%;
+      animation: spin .7s linear infinite;
+      margin-right: 8px;
+      vertical-align: middle
+    }
+
+    @keyframes spin {
+      to {
+        transform: rotate(360deg)
+      }
+    }
+
+    .cell-name {
+      max-width: 300px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      color: var(--text)
+    }
+
+    .cell-ip {
+      max-width: 170px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      color: var(--muted);
+      font-size: 12px
+    }
+
+    /* ── Clear button ── */
+    .btn-clear {
+      background: rgba(5, 150, 105, .08);
+      border: 1.5px solid rgba(5, 150, 105, .3);
+      color: var(--green);
+      border-radius: 8px;
+      padding: 11px 20px;
+      font-family: var(--mono);
+      font-size: 14px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all .2s;
+    }
+
+    .btn-clear:hover {
+      background: rgba(5, 150, 105, .16);
+      border-color: var(--green);
+    }
+
+    /* ── Report Modal scroll fix ── */
+    .rpt-modal {
+      display: flex;
+      flex-direction: column;
+      max-height: 92vh;
+    }
+
+    .rpt-modal .modal-body {
+      overflow-y: auto;
+      flex: 1;
+    }
+
+    /* ── Output Folder Button ── */
+    .btn-outfolder {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      background: rgba(234, 179, 8, .1);
+      border: 1px solid rgba(234, 179, 8, .4);
+      color: #b45309;
+      border-radius: 8px;
+      padding: 9px 18px;
+      font-family: var(--mono);
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all .2s;
+      white-space: nowrap;
+    }
+
+    .btn-outfolder:hover {
+      background: rgba(234, 179, 8, .2);
+      border-color: #b45309;
+      box-shadow: 0 2px 8px rgba(234, 179, 8, .2)
+    }
+
+    .btn-outfolder svg {
+      width: 15px;
+      height: 15px;
+      flex-shrink: 0
+    }
+
+    /* ── Report Generator Button ── */
+    .btn-report {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      background: rgba(46, 204, 113, .1);
+      border: 1px solid rgba(46, 204, 113, .35);
+      color: #059669;
+      border-radius: 8px;
+      padding: 9px 18px;
+      font-family: var(--mono);
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all .2s;
+      white-space: nowrap;
+    }
+
+    .btn-report:hover {
+      background: rgba(46, 204, 113, .2);
+      border-color: #059669;
+      box-shadow: 0 2px 8px rgba(46, 204, 113, .2)
+    }
+
+    .btn-report svg {
+      width: 15px;
+      height: 15px;
+      flex-shrink: 0
+    }
+
+    /* ── Docket Report Button ── */
+    .btn-docket {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      background: rgba(234, 88, 12, .1);
+      border: 1px solid rgba(234, 88, 12, .35);
+      color: #c2410c;
+      border-radius: 8px;
+      padding: 9px 18px;
+      font-family: var(--mono);
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all .2s;
+      white-space: nowrap;
+    }
+
+    .btn-docket:hover {
+      background: rgba(234, 88, 12, .2);
+      border-color: #c2410c;
+      box-shadow: 0 2px 8px rgba(234, 88, 12, .2)
+    }
+
+    .btn-docket svg {
+      width: 15px;
+      height: 15px;
+      flex-shrink: 0
+    }
+
+    /* ── Report Modal ── */
+    .rpt-modal {
+      width: 620px;
+      max-width: 96vw
+    }
+
+    .rpt-section {
+      margin-bottom: 18px
+    }
+
+    .rpt-label {
+      font-size: 11px;
+      font-family: var(--mono);
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      font-weight: 600;
+      margin-bottom: 6px;
+      display: block
+    }
+
+    .rpt-row {
+      display: flex;
+      gap: 8px;
+      align-items: center
+    }
+
+    .rpt-input {
+      flex: 1;
+      background: #f8fafc;
+      border: 1.5px solid var(--border);
+      border-radius: 8px;
+      color: var(--text);
+      font-family: var(--mono);
+      font-size: 13px;
+      padding: 9px 12px;
+      outline: none;
+      transition: border-color .2s;
+    }
+
+    .rpt-input:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px rgba(0, 119, 204, .1)
+    }
+
+    .rpt-select {
+      background: #f8fafc;
+      border: 1.5px solid var(--border);
+      border-radius: 8px;
+      color: var(--text);
+      font-family: var(--mono);
+      font-size: 13px;
+      padding: 8px 10px;
+      outline: none;
+      cursor: pointer;
+      transition: border-color .2s;
+    }
+
+    .rpt-select:focus {
+      border-color: var(--accent)
+    }
+
+    .btn-scan {
+      background: rgba(109, 40, 217, .1);
+      border: 1px solid rgba(109, 40, 217, .3);
+      color: var(--accent2);
+      border-radius: 8px;
+      padding: 9px 16px;
+      font-family: var(--mono);
+      font-size: 13px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all .2s;
+      white-space: nowrap;
+    }
+
+    .btn-scan:hover {
+      background: rgba(109, 40, 217, .18);
+      border-color: var(--accent2)
+    }
+
+    .rpt-file-grid {
+      display: grid;
+      gap: 6px;
+      margin-top: 2px
+    }
+
+    .rpt-file-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      background: #f8fafc;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 8px 12px;
+      font-family: var(--mono);
+      font-size: 12px;
+    }
+
+    .rpt-file-label {
+      min-width: 145px;
+      color: var(--muted);
+      font-weight: 600
+    }
+
+    .rpt-file-name {
+      flex: 1;
+      color: var(--text);
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      font-size: 11px
+    }
+
+    .rpt-file-status {
+      font-size: 13px;
+      flex-shrink: 0
+    }
+
+    .rpt-upload-btn {
+      cursor: pointer;
+      font-size: 11px;
+      color: var(--accent);
+      padding: 2px 7px;
+      border-radius: 4px;
+      border: 1px solid rgba(0, 119, 204, .3);
+      background: rgba(0, 119, 204, .06);
+      white-space: nowrap;
+      flex-shrink: 0;
+      transition: all .15s;
+    }
+
+    .rpt-upload-btn:hover {
+      background: rgba(0, 119, 204, .18);
+      border-color: var(--accent)
+    }
+
+    .rpt-tmpl-bar {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      background: #f0fdf4;
+      border: 1px solid rgba(5, 150, 105, .25);
+      border-radius: 8px;
+      padding: 8px 12px;
+      font-family: var(--mono);
+      font-size: 12px;
+      color: var(--green);
+    }
+
+    .rpt-tmpl-bar.missing {
+      background: #fff5f5;
+      border-color: rgba(220, 38, 38, .25);
+      color: var(--red)
+    }
+
+    .rpt-log {
+      height: 100px;
+      overflow-y: auto;
+      background: #0f1720;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 10px 12px;
+      font-family: var(--mono);
+      font-size: 12px;
+      color: #b2bec3;
+      white-space: pre-wrap;
+      line-height: 1.5;
+    }
+
+    .rpt-sep {
+      border: none;
+      border-top: 1px solid var(--border);
+      margin: 16px 0
+    }
+
+    .btn-generate {
+      flex: 2;
+      background: linear-gradient(135deg, #059669, #047857);
+      border: none;
+      color: #fff;
+      border-radius: 8px;
+      padding: 11px;
+      font-family: var(--sans);
+      font-weight: 800;
+      font-size: 14px;
+      cursor: pointer;
+      transition: opacity .2s;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+    }
+
+    .btn-generate:hover {
+      opacity: .88
+    }
+
+    .btn-generate:disabled {
+      opacity: .4;
+      cursor: not-allowed
+    }
+
+    .btn-download {
+      display: none;
+      flex: 1;
+      background: linear-gradient(135deg, var(--accent), #005fa3);
+      border: none;
+      color: #fff;
+      border-radius: 8px;
+      padding: 11px;
+      font-family: var(--sans);
+      font-weight: 800;
+      font-size: 14px;
+      cursor: pointer;
+      transition: opacity .2s;
+      text-decoration: none;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+    }
+
+    .btn-download.show {
+      display: flex
+    }
+
+    .btn-download:hover {
+      opacity: .88
+    }
+
+    /* ── IP Autocomplete ── */
+    .ac-wrap {
+      position: relative;
+      flex: 1;
+      min-width: 160px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px
+    }
+
+    .ac-wrap label {
+      font-size: 12px;
+      font-family: var(--mono);
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      font-weight: 600
+    }
+
+    .ac-dropdown {
+      display: none;
+      position: absolute;
+      top: 100%;
+      left: 0;
+      right: 0;
+      z-index: 50;
+      background: #fff;
+      border: 1.5px solid var(--accent);
+      border-top: none;
+      border-radius: 0 0 8px 8px;
+      max-height: 220px;
+      overflow-y: auto;
+      box-shadow: 0 8px 24px rgba(0, 0, 0, .12);
+    }
+
+    .ac-dropdown.open {
+      display: block
+    }
+
+    .ac-item {
+      padding: 9px 14px;
+      font-family: var(--mono);
+      font-size: 14px;
+      color: var(--text);
+      cursor: pointer;
+      transition: background .12s;
+    }
+
+    .ac-item:hover,
+    .ac-item.active {
+      background: rgba(0, 119, 204, .08);
+      color: var(--accent)
+    }
+
+    .ac-item mark {
+      background: none;
+      color: var(--accent);
+      font-weight: 700
+    }
+  </style>
 </head>
+
 <body>
 
-<!-- ── Header ── -->
-<header>
-  <div class="logo-ring">🌐</div>
-  <h1>CPAN <span>Network Explorer</span></h1>
-  <div class="header-right">
-    <button class="btn-outfolder" id="btn-outfolder" onclick="openOutputFolder()" title="Open reports output folder">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-        <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>
-        <polyline points="12 11 12 17"/>
-        <polyline points="9 14 12 17 15 14"/>
-      </svg>
-      Reports Folder
-    </button>
-    <button class="btn-report" onclick="openReportModal()">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
-        <polyline points="14 2 14 8 20 8"/>
-        <line x1="16" y1="13" x2="8" y2="13"/>
-        <line x1="16" y1="17" x2="8" y2="17"/>
-        <polyline points="10 9 9 9 8 9"/>
-      </svg>
-      Generate Report
-    </button>
-    <button class="btn-docket" onclick="openDocketModal()">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-        <path d="M2 9a3 3 0 1 0 0 6v3a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-3a3 3 0 1 1 0-6V6a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2z"/>
-        <path d="M13 5v2M13 11v2M13 17v2"/>
-      </svg>
-      Docket Report
-    </button>
-    <button class="btn-upload" onclick="openUploadModal()">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
-        <polyline points="17 8 12 3 7 8"/>
-        <line x1="12" y1="3" x2="12" y2="15"/>
-      </svg>
-      Upload &amp; Refresh Data
-    </button>
-    <div class="header-badge">BSNL Gujarat CPAN NOC</div>
-  </div>
-</header>
-
-<!-- ── Upload Modal ── -->
-<div class="modal-overlay" id="upload-modal" onclick="handleOverlayClick(event)">
-  <div class="modal">
-    <div class="modal-top">
-      <span style="font-size:18px">📂</span>
-      <h3>Upload New Data File</h3>
-      <button class="close-btn" onclick="closeUploadModal()">×</button>
+  <!-- ── Header ── -->
+  <header>
+    <div class="logo-ring">🌐</div>
+    <h1>CPAN <span>Network Explorer</span></h1>
+    <div class="header-right">
+      <button class="btn-outfolder" id="btn-outfolder" onclick="openOutputFolder()" title="Open reports output folder">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+          stroke-linejoin="round">
+          <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" />
+          <polyline points="12 11 12 17" />
+          <polyline points="9 14 12 17 15 14" />
+        </svg>
+        Reports Folder
+      </button>
+      <button class="btn-report" onclick="openReportModal()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+          stroke-linejoin="round">
+          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+          <polyline points="14 2 14 8 20 8" />
+          <line x1="16" y1="13" x2="8" y2="13" />
+          <line x1="16" y1="17" x2="8" y2="17" />
+          <polyline points="10 9 9 9 8 9" />
+        </svg>
+        Generate Report
+      </button>
+      <button class="btn-docket" onclick="openDocketModal()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+          stroke-linejoin="round">
+          <path
+            d="M2 9a3 3 0 1 0 0 6v3a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-3a3 3 0 1 1 0-6V6a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2z" />
+          <path d="M13 5v2M13 11v2M13 17v2" />
+        </svg>
+        Docket Report
+      </button>
+      <button class="btn-upload" onclick="openUploadModal()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+          stroke-linejoin="round">
+          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+          <polyline points="17 8 12 3 7 8" />
+          <line x1="12" y1="3" x2="12" y2="15" />
+        </svg>
+        Upload &amp; Refresh Data
+      </button>
+      <div class="header-badge">BSNL Gujarat CPAN NOC</div>
     </div>
-    <div class="modal-body">
-      <div class="drop-zone" id="drop-zone"
-           ondragover="handleDragOver(event)"
-           ondragleave="handleDragLeave(event)"
-           ondrop="handleDrop(event)">
-        <input type="file" id="file-input" accept=".csv,.xlsx,.xls" onchange="handleFileSelect(event)">
-        <span class="drop-icon">🗂️</span>
-        <p>Drag &amp; drop your CSV or Excel file here<br>or <strong>click to browse</strong></p>
-        <p style="margin-top:8px;font-size:10px">Accepted: .csv · .xlsx · .xls</p>
+  </header>
+
+  <!-- ── Upload Modal ── -->
+  <div class="modal-overlay" id="upload-modal" onclick="handleOverlayClick(event)">
+    <div class="modal">
+      <div class="modal-top">
+        <span style="font-size:18px">📂</span>
+        <h3>Upload New Data File</h3>
+        <button class="close-btn" onclick="closeUploadModal()">×</button>
       </div>
-
-      <div class="file-info" id="file-info">
-        <span style="font-size:18px">📄</span>
-        <span class="fname" id="file-name"></span>
-        <span class="fsize" id="file-size"></span>
-        <button class="remove-file" onclick="clearFile()" title="Remove">×</button>
-      </div>
-
-      <div class="upload-progress" id="upload-progress">
-        <div class="prog-bar"><div class="prog-fill" id="prog-fill"></div></div>
-        <div class="prog-label" id="prog-label">Uploading…</div>
-      </div>
-
-      <div class="modal-actions">
-        <button class="btn-cancel" onclick="closeUploadModal()">Cancel</button>
-        <button class="btn-confirm" id="btn-confirm" onclick="doUpload()" disabled>
-          ⚡ Load &amp; Refresh
-        </button>
-      </div>
-    </div>
-  </div>
-</div>
-
-<!-- ── Report Generator Modal ── -->
-<div class="modal-overlay" id="report-modal" onclick="handleRptOverlayClick(event)">
-  <div class="modal rpt-modal">
-    <div class="modal-top">
-      <span style="font-size:18px">📊</span>
-      <h3>CPAN Daily Report Generator</h3>
-      <button class="close-btn" onclick="closeReportModal()">×</button>
-    </div>
-    <div class="modal-body" style="padding:20px 24px">
-
-      <!-- Server Input Folder config (server PC only) -->
-      <div id="rpt-server-folder-section" class="rpt-section" style="display:none">
-        <span class="rpt-label">Server Input Folder <span style="font-size:10px;color:var(--muted)">(where WhatsApp / downloaded files are stored on this PC)</span></span>
-        <div class="rpt-row">
-          <input type="text" class="rpt-input" id="rpt-server-folder-display" readonly
-                 style="flex:1;cursor:default;background:rgba(0,0,0,.08);color:var(--muted);font-size:11px"
-                 placeholder="Not configured — click Browse to set">
-          <button class="btn-scan" onclick="rptBrowseInputFolder()" style="white-space:nowrap">📁 Browse…</button>
+      <div class="modal-body">
+        <div class="drop-zone" id="drop-zone" ondragover="handleDragOver(event)" ondragleave="handleDragLeave(event)"
+          ondrop="handleDrop(event)">
+          <input type="file" id="file-input" accept=".csv,.xlsx,.xls" onchange="handleFileSelect(event)">
+          <span class="drop-icon">🗂️</span>
+          <p>Drag &amp; drop your CSV or Excel file here<br>or <strong>click to browse</strong></p>
+          <p style="margin-top:8px;font-size:10px">Accepted: .csv · .xlsx · .xls</p>
         </div>
-      </div>
 
-      <div class="rpt-section" style="margin-bottom:12px">
-        <span class="rpt-label">Report Date</span>
-        <div class="rpt-row" style="gap:6px;flex-wrap:wrap">
-          <select class="rpt-select" id="rpt-day" onchange="rptDateChanged()"></select>
-          <span style="color:var(--muted);font-family:var(--mono);font-weight:700">-</span>
-          <select class="rpt-select" id="rpt-month" onchange="rptDateChanged()"></select>
-          <span style="color:var(--muted);font-family:var(--mono);font-weight:700">-</span>
-          <select class="rpt-select" id="rpt-year" onchange="rptDateChanged()"></select>
-          <button class="btn-scan" id="rpt-scan-server-btn" onclick="rptScanServer()"
-                  title="Scan server input folder for files matching this date">🔍 Scan Server</button>
+        <div class="file-info" id="file-info">
+          <span style="font-size:18px">📄</span>
+          <span class="fname" id="file-name"></span>
+          <span class="fsize" id="file-size"></span>
+          <button class="remove-file" onclick="clearFile()" title="Remove">×</button>
         </div>
-      </div>
 
-      <!-- Per-file input grid -->
-      <div class="rpt-section">
-        <span class="rpt-label" style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:6px">
-          Input Files
-          <label class="btn-scan" style="cursor:pointer;font-size:11px;padding:4px 10px;display:inline-flex;align-items:center;gap:5px;font-weight:600">
-            📁 Upload All from Folder
-            <input type="file" id="rpt-folder-input" webkitdirectory style="display:none"
-                   onchange="rptHandleFolderSelect(this)">
-          </label>
-        </span>
-        <div class="rpt-file-grid" id="rpt-file-grid" style="margin-top:8px">
-          <div class="rpt-file-row"><span class="rpt-file-label">Card Offline</span><span class="rpt-file-name" id="rpt-f-card_off" style="color:var(--muted)">—</span><span class="rpt-file-status" id="rpt-s-card_off">⬜</span><label class="rpt-upload-btn" title="Upload from this PC">📎<input type="file" accept=".xlsx,.csv,.xls" style="display:none" onchange="rptUploadSingle('card_off',this)"></label></div>
-          <div class="rpt-file-row"><span class="rpt-file-label">Device Offline</span><span class="rpt-file-name" id="rpt-f-device_off" style="color:var(--muted)">—</span><span class="rpt-file-status" id="rpt-s-device_off">⬜</span><label class="rpt-upload-btn" title="Upload from this PC">📎<input type="file" accept=".xlsx,.csv,.xls" style="display:none" onchange="rptUploadSingle('device_off',this)"></label></div>
-          <div class="rpt-file-row"><span class="rpt-file-label">Fan Failure</span><span class="rpt-file-name" id="rpt-f-fan_fail" style="color:var(--muted)">—</span><span class="rpt-file-status" id="rpt-s-fan_fail">⬜</span><label class="rpt-upload-btn" title="Upload from this PC">📎<input type="file" accept=".xlsx,.csv,.xls" style="display:none" onchange="rptUploadSingle('fan_fail',this)"></label></div>
-          <div class="rpt-file-row"><span class="rpt-file-label">CPAN DL Fail</span><span class="rpt-file-name" id="rpt-f-dl_fail" style="color:var(--muted)">—</span><span class="rpt-file-status" id="rpt-s-dl_fail">⬜</span><label class="rpt-upload-btn" title="Upload from this PC">📎<input type="file" accept=".xlsx,.csv,.xls" style="display:none" onchange="rptUploadSingle('dl_fail',this)"></label></div>
-          <div class="rpt-file-row"><span class="rpt-file-label">Dash Down</span><span class="rpt-file-name" id="rpt-f-dash_down" style="color:var(--muted)">—</span><span class="rpt-file-status" id="rpt-s-dash_down">⬜</span><label class="rpt-upload-btn" title="Upload from this PC">📎<input type="file" accept=".xlsx,.csv,.xls" style="display:none" onchange="rptUploadSingle('dash_down',this)"></label></div>
-          <div class="rpt-file-row"><span class="rpt-file-label">DL Down RT</span><span class="rpt-file-name" id="rpt-f-dl_down" style="color:var(--muted)">—</span><span class="rpt-file-status" id="rpt-s-dl_down">⬜</span><label class="rpt-upload-btn" title="Upload from this PC">📎<input type="file" accept=".xlsx,.csv,.xls" style="display:none" onchange="rptUploadSingle('dl_down',this)"></label></div>
-          <div class="rpt-file-row"><span class="rpt-file-label">DL Alarms</span><span class="rpt-file-name" id="rpt-f-dl_alarms" style="color:var(--muted)">—</span><span class="rpt-file-status" id="rpt-s-dl_alarms">⬜</span><label class="rpt-upload-btn" title="Upload from this PC">📎<input type="file" accept=".xlsx,.csv,.xls" style="display:none" onchange="rptUploadSingle('dl_alarms',this)"></label></div>
+        <div class="upload-progress" id="upload-progress">
+          <div class="prog-bar">
+            <div class="prog-fill" id="prog-fill"></div>
+          </div>
+          <div class="prog-label" id="prog-label">Uploading…</div>
         </div>
-      </div>
 
-      <!-- Template status -->
-      <div class="rpt-tmpl-bar" id="rpt-tmpl-bar" style="margin-bottom:14px;flex-wrap:wrap;gap:8px">
-        <span id="rpt-tmpl-icon">⬜</span>
-        <span id="rpt-tmpl-text" style="flex:1">Template: checking…</span>
-        <button class="btn-scan" id="rpt-tmpl-browse-btn" onclick="rptBrowseTemplate()"
-                style="padding:4px 12px;font-size:12px">📂 Browse Template</button>
-      </div>
-
-      <!-- Output filename -->
-      <div class="rpt-section" style="margin-bottom:12px">
-        <span class="rpt-label">Output Filename</span>
-        <input type="text" class="rpt-input" id="rpt-output"
-               placeholder="DAILY_CPAN_REPORTS_DD.MM.YY.xlsx" style="width:100%">
-      </div>
-
-      <!-- Save Location (local/PC A only) -->
-      <div id="rpt-save-section" class="rpt-section" style="margin-bottom:12px">
-        <span class="rpt-label">Save Location <span style="font-size:10px;color:var(--muted)">(server PC only)</span></span>
-        <div style="display:flex;gap:8px;align-items:center">
-          <input type="text" class="rpt-input" id="rpt-save-dir" readonly
-                 style="flex:1;cursor:default;background:rgba(0,0,0,.15);color:var(--muted);font-size:11px"
-                 placeholder="Loading…">
-          <button class="btn-scan" onclick="rptBrowseOutputFolder()"
-                  style="white-space:nowrap;padding:6px 12px" title="Choose a different save folder">
-            📂 Change
+        <div class="modal-actions">
+          <button class="btn-cancel" onclick="closeUploadModal()">Cancel</button>
+          <button class="btn-confirm" id="btn-confirm" onclick="doUpload()" disabled>
+            ⚡ Load &amp; Refresh
           </button>
         </div>
       </div>
-
-      <hr class="rpt-sep">
-
-      <!-- Progress log -->
-      <div class="rpt-section" style="margin-bottom:14px">
-        <span class="rpt-label">Progress Log</span>
-        <div class="rpt-log" id="rpt-log">Detecting mode…</div>
-      </div>
-
-      <!-- Actions -->
-      <div class="modal-actions" style="gap:10px">
-        <button class="btn-cancel" onclick="closeReportModal()">Close</button>
-        <button class="btn-generate" id="rpt-gen-btn" onclick="rptGenerate()">
-          ⚡ Generate Report
-        </button>
-        <a class="btn-download" id="rpt-dl-xlsx" href="#" download style="display:none">
-          ⬇ Download XLSX
-        </a>
-        <a class="btn-download" id="rpt-dl-pdf" href="#" download style="display:none;background:rgba(239,68,68,.15);border-color:#ef4444;color:#ef4444">
-          ⬇ Download PDFs (ZIP)
-        </a>
-      </div>
     </div>
   </div>
-</div>
 
-<!-- ── Docket Report Modal ── -->
-<div class="modal-overlay" id="docket-modal" onclick="handleDktOverlayClick(event)">
-  <div class="modal rpt-modal">
-    <div class="modal-top">
-      <span style="font-size:18px">🎫</span>
-      <h3>GCS Docket Report</h3>
-      <button class="close-btn" onclick="closeDocketModal()">×</button>
-    </div>
-    <div class="modal-body" style="padding:20px 24px">
-
-      <div class="rpt-section">
-        <span class="rpt-label">Shift Date <span style="font-size:10px;color:var(--muted)">(covers 08:00 that day to 08:00 the next day)</span></span>
-        <input type="date" class="rpt-input" id="dkt-date" style="width:100%">
+  <!-- ── Report Generator Modal ── -->
+  <div class="modal-overlay" id="report-modal" onclick="handleRptOverlayClick(event)">
+    <div class="modal rpt-modal">
+      <div class="modal-top">
+        <span style="font-size:18px">📊</span>
+        <h3>CPAN Daily Report Generator</h3>
+        <button class="close-btn" onclick="closeReportModal()">×</button>
       </div>
+      <div class="modal-body" style="padding:20px 24px">
 
-      <p style="font-family:var(--mono);font-size:11.5px;color:var(--muted);margin:-6px 0 16px">
-        Logs into GCS and pulls every docket booked in this shift window, plus any older backlog
-        docket that got cleared during it. Reporter 99412764 is excluded from the main Dockets/CPAN
-        view; their CPAN-DL dockets land in <strong>Other</strong>, MAAN-TL dockets land in
-        <strong>MAAN</strong>. Sheets: <strong>Final Report</strong> (matches the reference
-        DAILY_CPAN_DOCKET_CALCULATION sheet, fully automated), <strong>Dockets</strong>,
-        <strong>CPAN</strong>, <strong>MAAN</strong>, <strong>Other</strong>, and
-        <strong>Summary</strong> (booked/cleared/pending breakdowns plus per-staff average
-        clear-time KPI). Hover over a person's ID to see their name.
-        The Final Report also breaks "Total Resolved" into today's-booking vs old-backlog
-        sub-rows, so the day/night-duty figures reconcile clearly. Reporter 99412764's
-        DL-down/TL-down dockets are additionally excluded from the Final Report's own
-        day/night-duty and pending calculation (GCS mis-records their Date Submitted as
-        00:00 hrs regardless of actual booking time) - they still appear normally in Other/MAAN.
-        Takes ~1 min per ~100 dockets.
-      </p>
-
-      <hr class="rpt-sep">
-
-      <!-- Progress log -->
-      <div class="rpt-section" style="margin-bottom:14px">
-        <span class="rpt-label">Progress Log</span>
-        <div class="rpt-log" id="dkt-log"></div>
-      </div>
-
-      <!-- Actions -->
-      <div class="modal-actions" style="gap:10px">
-        <button class="btn-cancel" onclick="closeDocketModal()">Close</button>
-        <button class="btn-generate" id="dkt-gen-btn" onclick="dktGenerate()">
-          ⚡ Generate Report
-        </button>
-        <a class="btn-download" id="dkt-dl" href="#" download style="display:none">
-          ⬇ Download XLSX
-        </a>
-      </div>
-    </div>
-  </div>
-</div>
-
-<!-- ── Toast ── -->
-<div class="toast" id="toast">
-  <span class="toast-icon" id="toast-icon"></span>
-  <div class="toast-text">
-    <strong id="toast-title"></strong>
-    <span id="toast-sub"></span>
-  </div>
-</div>
-
-<!-- ── Stats Bar ── -->
-<div id="stats-bar">
-  <div class="stat-cell">
-    <span class="label">Total Links</span>
-    <span class="value" id="s-total">—</span>
-    <span class="sublabel" id="s-file">—</span>
-  </div>
-  <div class="stat-cell green">
-    <span class="label">10GE Links</span>
-    <span class="value" id="s-10g">—</span>
-  </div>
-  <div class="stat-cell red">
-    <span class="label">Down / Alarm</span>
-    <span class="value" id="s-down">—</span>
-  </div>
-  <div class="stat-cell">
-    <span class="label">Avg CIR (10GE)</span>
-    <span class="value" id="s-cir">—</span>
-  </div>
-  <div class="stat-cell">
-    <span class="label">Last Updated</span>
-    <span class="value" style="font-size:.85rem" id="s-updated">—</span>
-  </div>
-</div>
-
-<!-- ── Tab Nav ── -->
-<div class="tab-nav">
-  <button class="tab-btn active" onclick="switchTab('path',this)">🔗 Path Finder</button>
-  <button class="tab-btn" onclick="switchTab('optimum',this)">
-    ⚡ 10GE Optimum List <span class="tab-badge" id="badge-10g">—</span>
-  </button>
-  <button class="tab-btn" onclick="switchTab('down',this)">
-    🔴 Down DL List <span class="tab-badge" id="badge-down">—</span>
-  </button>
-</div>
-
-<!-- ── TAB 1: Path Finder ── -->
-<div id="tab-path" class="tab-panel active">
-  <div class="finder-wrap">
-    <div class="search-card">
-      <h2>// Find Network Path</h2>
-      <div class="input-row">
-        <div class="ac-wrap">
-          <label>Source IP</label>
-          <input type="text" id="src" placeholder="e.g. 24.167" autocomplete="off">
-          <div class="ac-dropdown" id="ac-src"></div>
-          <span class="ip-node-name" id="src-name"></span>
+        <!-- Server Input Folder config (server PC only) -->
+        <div id="rpt-server-folder-section" class="rpt-section" style="display:none">
+          <span class="rpt-label">Server Input Folder <span style="font-size:10px;color:var(--muted)">(where WhatsApp /
+              downloaded files are stored on this PC)</span></span>
+          <div class="rpt-row">
+            <input type="text" class="rpt-input" id="rpt-server-folder-display" readonly
+              style="flex:1;cursor:default;background:rgba(0,0,0,.08);color:var(--muted);font-size:11px"
+              placeholder="Not configured — click Browse to set">
+            <button class="btn-scan" onclick="rptBrowseInputFolder()" style="white-space:nowrap">📁 Browse…</button>
+          </div>
         </div>
-        <div class="ac-wrap">
-          <label>Target IP</label>
-          <input type="text" id="tgt" placeholder="e.g. 24.130" autocomplete="off">
-          <div class="ac-dropdown" id="ac-tgt"></div>
-          <span class="ip-node-name" id="tgt-name"></span>
+
+        <div class="rpt-section" style="margin-bottom:12px">
+          <span class="rpt-label">Report Date</span>
+          <div class="rpt-row" style="gap:6px;flex-wrap:wrap">
+            <select class="rpt-select" id="rpt-day" onchange="rptDateChanged()"></select>
+            <span style="color:var(--muted);font-family:var(--mono);font-weight:700">-</span>
+            <select class="rpt-select" id="rpt-month" onchange="rptDateChanged()"></select>
+            <span style="color:var(--muted);font-family:var(--mono);font-weight:700">-</span>
+            <select class="rpt-select" id="rpt-year" onchange="rptDateChanged()"></select>
+            <button class="btn-scan" id="rpt-scan-server-btn" onclick="rptScanServer()"
+              title="Scan server input folder for files matching this date">🔍 Scan Server</button>
+          </div>
         </div>
-        <div style="display:flex;gap:10px;align-self:flex-end">
-          <button class="btn-find" onclick="findPath()">▶ Find Paths</button>
-          <button class="btn-clear" id="btn-clear" onclick="clearSearch()">✕ Clear</button>
+
+        <!-- Per-file input grid -->
+        <div class="rpt-section">
+          <span class="rpt-label"
+            style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:6px">
+            Input Files
+            <label class="btn-scan"
+              style="cursor:pointer;font-size:11px;padding:4px 10px;display:inline-flex;align-items:center;gap:5px;font-weight:600">
+              📁 Upload All from Folder
+              <input type="file" id="rpt-folder-input" webkitdirectory style="display:none"
+                onchange="rptHandleFolderSelect(this)">
+            </label>
+          </span>
+          <div class="rpt-file-grid" id="rpt-file-grid" style="margin-top:8px">
+            <div class="rpt-file-row" style="border-color:rgba(0,119,204,.35)"><span class="rpt-file-label" style="font-weight:700;color:var(--accent)">Combined Failures</span><span class="rpt-file-name" id="rpt-f-combined_fail" style="color:var(--muted)">— Optional combined CSV/XLS file</span><span class="rpt-file-status" id="rpt-s-combined_fail">⬜</span><label class="rpt-upload-btn" title="Upload from this PC">📎<input type="file" accept=".csv,.xlsx,.xls" style="display:none" onchange="rptUploadSingle('combined_fail',this)"></label></div>
+            <div class="rpt-file-row"><span class="rpt-file-label">Card Offline</span><span class="rpt-file-name"
+                id="rpt-f-card_off" style="color:var(--muted)">—</span><span class="rpt-file-status"
+                id="rpt-s-card_off">⬜</span><label class="rpt-upload-btn" title="Upload from this PC">📎<input
+                  type="file" accept=".xlsx,.csv,.xls" style="display:none"
+                  onchange="rptUploadSingle('card_off',this)"></label></div>
+            <div class="rpt-file-row"><span class="rpt-file-label">Device Offline</span><span class="rpt-file-name"
+                id="rpt-f-device_off" style="color:var(--muted)">—</span><span class="rpt-file-status"
+                id="rpt-s-device_off">⬜</span><label class="rpt-upload-btn" title="Upload from this PC">📎<input
+                  type="file" accept=".xlsx,.csv,.xls" style="display:none"
+                  onchange="rptUploadSingle('device_off',this)"></label></div>
+            <div class="rpt-file-row"><span class="rpt-file-label">Fan Failure</span><span class="rpt-file-name"
+                id="rpt-f-fan_fail" style="color:var(--muted)">—</span><span class="rpt-file-status"
+                id="rpt-s-fan_fail">⬜</span><label class="rpt-upload-btn" title="Upload from this PC">📎<input
+                  type="file" accept=".xlsx,.csv,.xls" style="display:none"
+                  onchange="rptUploadSingle('fan_fail',this)"></label></div>
+            <div class="rpt-file-row"><span class="rpt-file-label">CPAN DL Fail</span><span class="rpt-file-name"
+                id="rpt-f-dl_fail" style="color:var(--muted)">—</span><span class="rpt-file-status"
+                id="rpt-s-dl_fail">⬜</span><label class="rpt-upload-btn" title="Upload from this PC">📎<input
+                  type="file" accept=".xlsx,.csv,.xls" style="display:none"
+                  onchange="rptUploadSingle('dl_fail',this)"></label></div>
+            <div class="rpt-file-row"><span class="rpt-file-label">Dash Down</span><span class="rpt-file-name"
+                id="rpt-f-dash_down" style="color:var(--muted)">—</span><span class="rpt-file-status"
+                id="rpt-s-dash_down">⬜</span><label class="rpt-upload-btn" title="Upload from this PC">📎<input
+                  type="file" accept=".xlsx,.csv,.xls" style="display:none"
+                  onchange="rptUploadSingle('dash_down',this)"></label></div>
+            <div class="rpt-file-row"><span class="rpt-file-label">DL Down RT</span><span class="rpt-file-name"
+                id="rpt-f-dl_down" style="color:var(--muted)">—</span><span class="rpt-file-status"
+                id="rpt-s-dl_down">⬜</span><label class="rpt-upload-btn" title="Upload from this PC">📎<input
+                  type="file" accept=".xlsx,.csv,.xls" style="display:none"
+                  onchange="rptUploadSingle('dl_down',this)"></label></div>
+            <div class="rpt-file-row"><span class="rpt-file-label">DL Alarms</span><span class="rpt-file-name"
+                id="rpt-f-dl_alarms" style="color:var(--muted)">—</span><span class="rpt-file-status"
+                id="rpt-s-dl_alarms">⬜</span><label class="rpt-upload-btn" title="Upload from this PC">📎<input
+                  type="file" accept=".xlsx,.csv,.xls" style="display:none"
+                  onchange="rptUploadSingle('dl_alarms',this)"></label></div>
+          </div>
+        </div>
+
+        <!-- Template status -->
+        <div class="rpt-tmpl-bar" id="rpt-tmpl-bar" style="margin-bottom:14px;flex-wrap:wrap;gap:8px">
+          <span id="rpt-tmpl-icon">⬜</span>
+          <span id="rpt-tmpl-text" style="flex:1">Template: checking…</span>
+          <button class="btn-scan" id="rpt-tmpl-browse-btn" onclick="rptBrowseTemplate()"
+            style="padding:4px 12px;font-size:12px">📂 Browse Template</button>
+        </div>
+
+        <!-- Output filename -->
+        <div class="rpt-section" style="margin-bottom:12px">
+          <span class="rpt-label">Output Filename</span>
+          <input type="text" class="rpt-input" id="rpt-output" placeholder="DAILY_CPAN_REPORTS_DD.MM.YY.xlsx"
+            style="width:100%">
+        </div>
+
+        <!-- Save Location (base folder — a dated subfolder is auto-created each day) -->
+        <div id="rpt-save-section" class="rpt-section" style="margin-bottom:12px">
+          <span class="rpt-label">Save Location <span style="font-size:10px;color:var(--muted)">(base
+              folder — type a shared network path, e.g. \\SERVER\Reports)</span></span>
+          <div style="display:flex;gap:8px;align-items:center">
+            <input type="text" class="rpt-input" id="rpt-save-dir"
+              style="flex:1;font-size:11px" placeholder="Loading…">
+            <button class="btn-scan" id="rpt-save-browse-btn" onclick="rptBrowseOutputFolder()"
+              style="white-space:nowrap;padding:6px 12px" title="Choose a different save folder (server PC only)">
+              📂 Browse
+            </button>
+            <button class="btn-scan" id="rpt-save-save-btn" onclick="rptSaveOutputFolder()"
+              style="white-space:nowrap;padding:6px 12px" title="Use the folder path typed above">
+              💾 Save
+            </button>
+          </div>
+          <div id="rpt-save-preview" style="font-size:10px;color:var(--muted);margin-top:4px"></div>
+        </div>
+
+        <hr class="rpt-sep">
+
+        <!-- Progress log -->
+        <div class="rpt-section" style="margin-bottom:14px">
+          <span class="rpt-label">Progress Log</span>
+          <div class="rpt-log" id="rpt-log">Detecting mode…</div>
+        </div>
+
+        <!-- Actions -->
+        <div class="modal-actions" style="gap:10px">
+          <button class="btn-cancel" onclick="closeReportModal()">Close</button>
+          <button class="btn-generate" id="rpt-gen-btn" onclick="rptGenerate()">
+            ⚡ Generate Report
+          </button>
+          <a class="btn-download" id="rpt-dl-xlsx" href="#" download style="display:none">
+            ⬇ Download XLSX
+          </a>
+          <a class="btn-download" id="rpt-dl-pdf" href="#" download
+            style="display:none;background:rgba(239,68,68,.15);border-color:#ef4444;color:#ef4444">
+            ⬇ Download PDFs (ZIP)
+          </a>
         </div>
       </div>
     </div>
-    <div id="error-msg"></div>
-    <div id="results"></div>
   </div>
-</div>
 
-<!-- ── TAB 2: 10GE Optimum ── -->
-<div id="tab-optimum" class="tab-panel">
-  <div class="table-wrap">
-    <div class="panel-title">
-      <span class="dot"></span>
-      10GE Links — Sorted by CIR Utilization (Optimum First)
-    </div>
-    <div class="filter-bar">
-      <input type="text" id="filter-10g" placeholder="🔍 Search by name or IP…" oninput="filterTable('tbl-10g','filter-10g')">
-    </div>
-    <div class="table-scroll">
-      <table id="tbl-10g">
-        <thead><tr>
-          <th>#</th><th>Link Name</th><th>A End IP</th><th>Z End IP</th>
-          <th>CIR Util %</th><th>BW Util %</th><th>Last Updated</th>
-        </tr></thead>
-        <tbody id="body-10g"><tr><td colspan="7" class="loading"><span class="spinner"></span>Loading…</td></tr></tbody>
-      </table>
+  <!-- ── Docket Report Modal ── -->
+  <div class="modal-overlay" id="docket-modal" onclick="handleDktOverlayClick(event)">
+    <div class="modal rpt-modal">
+      <div class="modal-top">
+        <span style="font-size:18px">🎫</span>
+        <h3>GCS Docket Report</h3>
+        <button class="close-btn" onclick="closeDocketModal()">×</button>
+      </div>
+      <div class="modal-body" style="padding:20px 24px">
+
+        <div class="rpt-section">
+          <span class="rpt-label">Shift Date <span style="font-size:10px;color:var(--muted)">(covers 08:00 that day to
+              08:00 the next day)</span></span>
+          <input type="date" class="rpt-input" id="dkt-date" style="width:100%">
+        </div>
+
+        <p style="font-family:var(--mono);font-size:11.5px;color:var(--muted);margin:-6px 0 16px">
+          Logs into GCS and pulls every docket booked in this shift window, plus any older backlog
+          docket that got cleared during it. Reporter 99412764 is excluded from the main Dockets/CPAN
+          view; their CPAN-DL dockets land in <strong>Other</strong>, MAAN-TL dockets land in
+          <strong>MAAN</strong>. Sheets: <strong>Final Report</strong> (matches the reference
+          DAILY_CPAN_DOCKET_CALCULATION sheet, fully automated), <strong>Dockets</strong>,
+          <strong>CPAN</strong>, <strong>MAAN</strong>, <strong>Other</strong>, and
+          <strong>Summary</strong> (booked/cleared/pending breakdowns plus per-staff average
+          clear-time KPI). Hover over a person's ID to see their name.
+          The Final Report also breaks "Total Resolved" into today's-booking vs old-backlog
+          sub-rows, so the day/night-duty figures reconcile clearly. Reporter 99412764's
+          DL-down/TL-down dockets are additionally excluded from the Final Report's own
+          day/night-duty and pending calculation (GCS mis-records their Date Submitted as
+          00:00 hrs regardless of actual booking time) - they still appear normally in Other/MAAN.
+          Takes ~1 min per ~100 dockets.
+        </p>
+
+        <hr class="rpt-sep">
+
+        <!-- Progress log -->
+        <div class="rpt-section" style="margin-bottom:14px">
+          <span class="rpt-label">Progress Log</span>
+          <div class="rpt-log" id="dkt-log"></div>
+        </div>
+
+        <!-- Actions -->
+        <div class="modal-actions" style="gap:10px">
+          <button class="btn-cancel" onclick="closeDocketModal()">Close</button>
+          <button class="btn-generate" id="dkt-gen-btn" onclick="dktGenerate()">
+            ⚡ Generate Report
+          </button>
+          <a class="btn-download" id="dkt-dl" href="#" download style="display:none">
+            ⬇ Download XLSX
+          </a>
+        </div>
+      </div>
     </div>
   </div>
-</div>
 
-<!-- ── TAB 3: Down Links ── -->
-<div id="tab-down" class="tab-panel">
-  <div class="table-wrap">
-    <div class="panel-title">
-      <span class="dot red"></span>
-      Down / Alarm DL Links
-    </div>
-    <div class="filter-bar">
-      <input type="text" id="filter-down" placeholder="🔍 Search by name or IP…" oninput="filterTable('tbl-down','filter-down')">
-    </div>
-    <div class="table-scroll">
-      <table id="tbl-down">
-        <thead><tr>
-          <th>#</th><th>Link Name</th><th>BW</th><th>Alarm</th>
-          <th>A End IP</th><th>Z End IP</th><th>CIR Util %</th><th>Last Updated</th>
-        </tr></thead>
-        <tbody id="body-down"><tr><td colspan="8" class="loading"><span class="spinner"></span>Loading…</td></tr></tbody>
-      </table>
+  <!-- ── Toast ── -->
+  <div class="toast" id="toast">
+    <span class="toast-icon" id="toast-icon"></span>
+    <div class="toast-text">
+      <strong id="toast-title"></strong>
+      <span id="toast-sub"></span>
     </div>
   </div>
-</div>
 
-<script>
-// ─────────────────────────────────────────────────────────────────────────────
-// Helpers
-// ─────────────────────────────────────────────────────────────────────────────
-function ipFromEnd(s){ return (s||'').trim().split('_')[0]; }
-function cirClass(v){ return v<=30?'low':v<=70?'mid':'high'; }
-function cirBar(v){
-  const c=cirClass(v);
-  return `<div class="cir-bar-wrap">
-    <div class="cir-bar"><div class="cir-fill ${c}" style="width:${Math.min(v,100)}%"></div></div>
+  <!-- ── Stats Bar ── -->
+  <div id="stats-bar">
+    <div class="stat-cell">
+      <span class="label">Total Links</span>
+      <span class="value" id="s-total">—</span>
+      <span class="sublabel" id="s-file">—</span>
+    </div>
+    <div class="stat-cell green">
+      <span class="label">10GE Links</span>
+      <span class="value" id="s-10g">—</span>
+    </div>
+    <div class="stat-cell red">
+      <span class="label">Down / Alarm</span>
+      <span class="value" id="s-down">—</span>
+    </div>
+    <div class="stat-cell">
+      <span class="label">Avg CIR (10GE)</span>
+      <span class="value" id="s-cir">—</span>
+    </div>
+    <div class="stat-cell">
+      <span class="label">Last Updated</span>
+      <span class="value" style="font-size:.85rem" id="s-updated">—</span>
+    </div>
+  </div>
+
+  <!-- ── Tab Nav ── -->
+  <div class="tab-nav">
+    <button class="tab-btn active" onclick="switchTab('path',this)">🔗 Path Finder</button>
+    <button class="tab-btn" onclick="switchTab('optimum',this)">
+      ⚡ 10GE Optimum List <span class="tab-badge" id="badge-10g">—</span>
+    </button>
+    <button class="tab-btn" onclick="switchTab('down',this)">
+      🔴 Down DL List <span class="tab-badge" id="badge-down">—</span>
+    </button>
+    <button class="tab-btn" onclick="switchTab('transfer',this)">
+      📁 File Transfer
+    </button>
+  </div>
+
+  <!-- ── TAB 1: Path Finder ── -->
+  <div id="tab-path" class="tab-panel active">
+    <div class="finder-wrap">
+      <div class="search-card">
+        <h2>// Find Network Path</h2>
+        <div class="input-row">
+          <div class="ac-wrap">
+            <label>Source IP</label>
+            <input type="text" id="src" placeholder="e.g. 24.167" autocomplete="off">
+            <div class="ac-dropdown" id="ac-src"></div>
+            <span class="ip-node-name" id="src-name"></span>
+          </div>
+          <div class="ac-wrap">
+            <label>Target IP</label>
+            <input type="text" id="tgt" placeholder="e.g. 24.130" autocomplete="off">
+            <div class="ac-dropdown" id="ac-tgt"></div>
+            <span class="ip-node-name" id="tgt-name"></span>
+          </div>
+          <div style="display:flex;gap:10px;align-self:flex-end">
+            <button class="btn-find" onclick="findPath()">▶ Find Paths</button>
+            <button class="btn-clear" id="btn-clear" onclick="clearSearch()">✕ Clear</button>
+          </div>
+        </div>
+      </div>
+      <div id="error-msg"></div>
+      <div id="results"></div>
+    </div>
+  </div>
+
+  <!-- ── TAB 2: 10GE Optimum ── -->
+  <div id="tab-optimum" class="tab-panel">
+    <div class="table-wrap">
+      <div class="panel-title">
+        <span class="dot"></span>
+        10GE Links — Sorted by CIR Utilization (Optimum First)
+      </div>
+      <div class="filter-bar">
+        <input type="text" id="filter-10g" placeholder="🔍 Search by name or IP…"
+          oninput="filterTable('tbl-10g','filter-10g')">
+      </div>
+      <div class="table-scroll">
+        <table id="tbl-10g">
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>Link Name</th>
+              <th>A End IP</th>
+              <th>Z End IP</th>
+              <th>CIR Util %</th>
+              <th>BW Util %</th>
+              <th>Last Updated</th>
+            </tr>
+          </thead>
+          <tbody id="body-10g">
+            <tr>
+              <td colspan="7" class="loading"><span class="spinner"></span>Loading…</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── TAB 3: Down Links ── -->
+  <div id="tab-down" class="tab-panel">
+    <div class="table-wrap">
+      <div class="panel-title">
+        <span class="dot red"></span>
+        Down / Alarm DL Links
+      </div>
+      <div class="filter-bar">
+        <input type="text" id="filter-down" placeholder="🔍 Search by name or IP…"
+          oninput="filterTable('tbl-down','filter-down')">
+      </div>
+      <div class="table-scroll">
+        <table id="tbl-down">
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>Link Name</th>
+              <th>BW</th>
+              <th>Alarm</th>
+              <th>A End IP</th>
+              <th>Z End IP</th>
+              <th>CIR Util %</th>
+              <th>Last Updated</th>
+            </tr>
+          </thead>
+          <tbody id="body-down">
+            <tr>
+              <td colspan="8" class="loading"><span class="spinner"></span>Loading…</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── TAB 4: File Transfer ── -->
+  <div id="tab-transfer" class="tab-panel">
+    <div class="xfer-wrap">
+
+      <!-- Login gate -->
+      <div class="xfer-login-card" id="xfer-login-card">
+        <h2>🔒 File Transfer — Login Required</h2>
+        <p class="xfer-hint">Shared LAN drop-folder for moving files between office PCs with no internet access. Ask your admin for the password.</p>
+        <div class="xfer-login-row">
+          <input type="password" id="xfer-password" placeholder="Password" autocomplete="off" onkeydown="if(event.key==='Enter')xferLogin()">
+          <button class="btn-find" onclick="xferLogin()">▶ Unlock</button>
+        </div>
+        <div class="xfer-login-error" id="xfer-login-error"></div>
+      </div>
+
+      <!-- File manager -->
+      <div class="xfer-manager" id="xfer-manager" style="display:none">
+        <div class="xfer-toolbar">
+          <div class="xfer-breadcrumb" id="xfer-breadcrumb"></div>
+          <div class="xfer-toolbar-actions">
+            <button class="btn-upload" title="Create a new subfolder here" onclick="xferPromptMkdir()">📁 New Folder</button>
+            <button class="btn-upload" title="Download everything in the current folder as one .zip" onclick="xferDownloadZip()">⬇ Zip This Folder</button>
+            <button class="btn-upload" title="Change the File Transfer login password" onclick="xferShowChangePw()">🔑 Change Password</button>
+            <button class="btn-cancel" style="flex:none;padding:9px 18px" title="Log out of File Transfer" onclick="xferLogout()">⏏ Logout</button>
+          </div>
+        </div>
+
+        <div class="drop-zone" id="xfer-drop-zone" ondragover="xferDragOver(event)" ondragleave="xferDragLeave(event)" ondrop="xferDrop(event)">
+          <span class="drop-icon">📤</span>
+          <p><strong>Click to choose files</strong> or drag & drop here<br>Uploads into the current folder</p>
+          <input type="file" id="xfer-file-input" multiple onchange="xferUploadFiles(this.files)">
+        </div>
+        <div class="upload-progress" id="xfer-progress">
+          <div class="prog-bar"><div class="prog-fill" id="xfer-prog-fill"></div></div>
+          <div class="prog-label" id="xfer-prog-label">Uploading…</div>
+        </div>
+
+        <div class="table-wrap" style="margin-top:18px">
+          <div class="table-scroll">
+            <table id="xfer-table">
+              <thead>
+                <tr>
+                  <th style="width:36px"></th>
+                  <th>Name</th>
+                  <th>Size</th>
+                  <th>Modified</th>
+                  <th style="width:140px">Actions</th>
+                </tr>
+              </thead>
+              <tbody id="xfer-body">
+                <tr>
+                  <td colspan="5" class="loading"><span class="spinner"></span>Loading…</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Change-password modal -->
+  <div class="modal-overlay" id="xfer-pw-modal">
+    <div class="modal" style="max-width:380px">
+      <h3 style="margin-bottom:16px">🔑 Change Transfer Password</h3>
+      <div class="input-group" style="margin-bottom:12px">
+        <label>Current Password</label>
+        <input type="password" id="xfer-pw-current" autocomplete="off">
+      </div>
+      <div class="input-group" style="margin-bottom:6px">
+        <label>New Password</label>
+        <input type="password" id="xfer-pw-new" autocomplete="off">
+      </div>
+      <div class="xfer-login-error" id="xfer-pw-error"></div>
+      <div class="modal-actions">
+        <button class="btn-cancel" onclick="xferHideChangePw()">Cancel</button>
+        <button class="btn-confirm" onclick="xferChangePassword()">Save</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // ─────────────────────────────────────────────────────────────────────────────
+    // Helpers
+    // ─────────────────────────────────────────────────────────────────────────────
+    function ipFromEnd(s) { return (s || '').trim().split('_')[0]; }
+    function cirClass(v) { return v <= 30 ? 'low' : v <= 70 ? 'mid' : 'high'; }
+    function cirBar(v) {
+      const c = cirClass(v);
+      return `<div class="cir-bar-wrap">
+    <div class="cir-bar"><div class="cir-fill ${c}" style="width:${Math.min(v, 100)}%"></div></div>
     <span class="cir-pct ${c}">${v}%</span></div>`;
-}
-function bwChip(bw){
-  const c=bw==='10GE'?'g10':'ge';
-  return `<span class="bw-chip ${c}">${bw}</span>`;
-}
-function filterTable(tid,fid){
-  const q=document.getElementById(fid).value.toLowerCase();
-  document.querySelectorAll('#'+tid+' tbody tr').forEach(r=>{
-    r.style.display=r.textContent.toLowerCase().includes(q)?'':'none';
-  });
-}
-function switchTab(name,btn){
-  document.querySelectorAll('.tab-panel').forEach(p=>p.classList.remove('active'));
-  document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
-  document.getElementById('tab-'+name).classList.add('active');
-  btn.classList.add('active');
-}
+    }
+    function bwChip(bw) {
+      const c = bw === '10GE' ? 'g10' : 'ge';
+      return `<span class="bw-chip ${c}">${bw}</span>`;
+    }
+    function filterTable(tid, fid) {
+      const q = document.getElementById(fid).value.toLowerCase();
+      document.querySelectorAll('#' + tid + ' tbody tr').forEach(r => {
+        r.style.display = r.textContent.toLowerCase().includes(q) ? '' : 'none';
+      });
+    }
+    function switchTab(name, btn) {
+      document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+      document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+      document.getElementById('tab-' + name).classList.add('active');
+      btn.classList.add('active');
+      if (name === 'transfer') xferCheckAuth();
+    }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Stats + tables
-// ─────────────────────────────────────────────────────────────────────────────
-function updateStatBar(d){
-  document.getElementById('s-total').textContent  = Number(d.total).toLocaleString();
-  document.getElementById('s-10g').textContent    = Number(d.links_10g).toLocaleString();
-  document.getElementById('s-down').textContent   = Number(d.down).toLocaleString();
-  document.getElementById('s-cir').textContent    = d.avg_cir+'%';
-  document.getElementById('s-file').textContent   = d.filename||'';
-  document.getElementById('s-updated').textContent= d.last_loaded||'—';
-  document.getElementById('badge-10g').textContent = d.links_10g;
-  document.getElementById('badge-down').textContent= d.down;
-}
+    // ─────────────────────────────────────────────────────────────────────────────
+    // Stats + tables
+    // ─────────────────────────────────────────────────────────────────────────────
+    function updateStatBar(d) {
+      document.getElementById('s-total').textContent = Number(d.total).toLocaleString();
+      document.getElementById('s-10g').textContent = Number(d.links_10g).toLocaleString();
+      document.getElementById('s-down').textContent = Number(d.down).toLocaleString();
+      document.getElementById('s-cir').textContent = d.avg_cir + '%';
+      document.getElementById('s-file').textContent = d.filename || '';
+      document.getElementById('s-updated').textContent = d.last_loaded || '—';
+      document.getElementById('badge-10g').textContent = d.links_10g;
+      document.getElementById('badge-down').textContent = d.down;
+    }
 
-async function loadAll(){
-  const [meta, r10g, rdown] = await Promise.all([
-    fetch('/api/meta').then(r=>r.json()),
-    fetch('/api/optimum_10g').then(r=>r.json()),
-    fetch('/api/down_links').then(r=>r.json()),
-  ]);
+    async function loadAll() {
+      const [meta, r10g, rdown] = await Promise.all([
+        fetch('/api/meta').then(r => r.json()),
+        fetch('/api/optimum_10g').then(r => r.json()),
+        fetch('/api/down_links').then(r => r.json()),
+      ]);
 
-  updateStatBar(meta);
-  render10g(r10g);
-  renderDown(rdown);
-}
+      updateStatBar(meta);
+      render10g(r10g);
+      renderDown(rdown);
+    }
 
-function render10g(rows){
-  document.getElementById('body-10g').innerHTML = rows.map((row,i)=>{
-    const aip=ipFromEnd(row['A End']), zip=ipFromEnd(row['Z End']);
-    const cir=row['CIR Utilization Ratio(%)'||0]||0;
-    const bw =row['Bandwidth Utilization Ratio(%)'||0]||0;
-    return `<tr>
-      <td style="color:var(--muted)">${i+1}</td>
+    function render10g(rows) {
+      document.getElementById('body-10g').innerHTML = rows.map((row, i) => {
+        const aip = ipFromEnd(row['A End']), zip = ipFromEnd(row['Z End']);
+        const cir = row['CIR Utilization Ratio(%)' || 0] || 0;
+        const bw = row['Bandwidth Utilization Ratio(%)' || 0] || 0;
+        return `<tr>
+      <td style="color:var(--muted)">${i + 1}</td>
       <td><div class="cell-name" title="${row['Name']}">${row['Name']}</div></td>
       <td><div class="cell-ip">${aip}</div></td>
       <td><div class="cell-ip">${zip}</div></td>
       <td>${cirBar(cir)}</td>
       <td>${cirBar(bw)}</td>
-      <td style="color:var(--muted);white-space:nowrap;font-size:11px">${(row['Update Time']||'').trim()}</td>
+      <td style="color:var(--muted);white-space:nowrap;font-size:11px">${(row['Update Time'] || '').trim()}</td>
     </tr>`;
-  }).join('') || '<tr><td colspan="7" class="loading">No 10GE data</td></tr>';
-}
+      }).join('') || '<tr><td colspan="7" class="loading">No 10GE data</td></tr>';
+    }
 
-function renderDown(rows){
-  document.getElementById('body-down').innerHTML = rows.map((row,i)=>{
-    const alarm=(row['Alarm Status']||'').trim().toLowerCase();
-    const rc=alarm.includes('critical')?'row-critical':'row-warning';
-    const bc=alarm.includes('critical')?'critical':'warning';
-    const bl=alarm.includes('critical')?'CRITICAL':'WARNING';
-    const aip=ipFromEnd(row['A End']), zip=ipFromEnd(row['Z End']);
-    const cir=row['CIR Utilization Ratio(%)'||0]||0;
-    const bw=(row['Bandwidth']||'').trim();
-    return `<tr class="${rc}">
-      <td style="color:var(--muted)">${i+1}</td>
+    function renderDown(rows) {
+      document.getElementById('body-down').innerHTML = rows.map((row, i) => {
+        const alarm = (row['Alarm Status'] || '').trim().toLowerCase();
+        const rc = alarm.includes('critical') ? 'row-critical' : 'row-warning';
+        const bc = alarm.includes('critical') ? 'critical' : 'warning';
+        const bl = alarm.includes('critical') ? 'CRITICAL' : 'WARNING';
+        const aip = ipFromEnd(row['A End']), zip = ipFromEnd(row['Z End']);
+        const cir = row['CIR Utilization Ratio(%)' || 0] || 0;
+        const bw = (row['Bandwidth'] || '').trim();
+        return `<tr class="${rc}">
+      <td style="color:var(--muted)">${i + 1}</td>
       <td><div class="cell-name" title="${row['Name']}">${row['Name']}</div></td>
       <td>${bwChip(bw)}</td>
       <td><span class="alarm-badge ${bc}">${bl}</span></td>
       <td><div class="cell-ip">${aip}</div></td>
       <td><div class="cell-ip">${zip}</div></td>
       <td>${cirBar(cir)}</td>
-      <td style="color:var(--muted);white-space:nowrap;font-size:11px">${(row['Update Time']||'').trim()}</td>
+      <td style="color:var(--muted);white-space:nowrap;font-size:11px">${(row['Update Time'] || '').trim()}</td>
     </tr>`;
-  }).join('') || '<tr><td colspan="8" class="loading">No alarms — all links healthy ✅</td></tr>';
-}
+      }).join('') || '<tr><td colspan="8" class="loading">No alarms — all links healthy ✅</td></tr>';
+    }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Path Finder
-// ─────────────────────────────────────────────────────────────────────────────
-function buildPathCards(paths, label, accentColor, names){
-  if(!paths.length) return `<div style="color:var(--muted);font-family:var(--mono);font-size:12px;padding:12px 0;">No paths found.</div>`;
-  let html = `<div style="color:var(--muted);font-family:var(--mono);font-size:11px;text-transform:uppercase;letter-spacing:1px;margin-bottom:10px;">
+    // ─────────────────────────────────────────────────────────────────────────────
+    // Path Finder
+    // ─────────────────────────────────────────────────────────────────────────────
+    function buildPathCards(paths, label, accentColor, names) {
+      if (!paths.length) return `<div style="color:var(--muted);font-family:var(--mono);font-size:12px;padding:12px 0;">No paths found.</div>`;
+      let html = `<div style="color:var(--muted);font-family:var(--mono);font-size:11px;text-transform:uppercase;letter-spacing:1px;margin-bottom:10px;">
     <span style="color:${accentColor};font-weight:700;">${label}</span>
     &nbsp;·&nbsp; ${paths.length} path(s) — min hops · max 10GE · min CIR</div>`;
-  paths.forEach((path, idx)=>{
-    const isBest = idx===0;
-    let hopHtml = '';
-    for(let i=0;i<path.nodes.length;i++){
-      const nodeName = names && names[path.nodes[i]] ? names[path.nodes[i]] : '';
-      hopHtml+=`<div class="hop-node">
+      paths.forEach((path, idx) => {
+        const isBest = idx === 0;
+        let hopHtml = '';
+        for (let i = 0; i < path.nodes.length; i++) {
+          const nodeName = names && names[path.nodes[i]] ? names[path.nodes[i]] : '';
+          hopHtml += `<div class="hop-node">
         <span class="hop-ip">${path.nodes[i]}</span>
         ${nodeName ? `<span class="hop-name">${nodeName}</span>` : ''}
       </div>`;
-      if(i<path.hops.length){
-        const h=path.hops[i];
-        const lc=h.is_10g?'is-10g':'is-ge';
-        hopHtml+=`<div class="hop-connector">
+          if (i < path.hops.length) {
+            const h = path.hops[i];
+            const lc = h.is_10g ? 'is-10g' : 'is-ge';
+            hopHtml += `<div class="hop-connector">
           <div class="hop-line ${lc}"></div>
           <span class="hop-bw-label ${lc}">${h.bandwidth}</span>
           <span class="hop-cir-label">CIR:${h.cir}%</span></div>`;
-      }
-    }
-    const tenGCount = path.count_10g || 0;
-    const allTenG   = tenGCount === path.hop_count;
-    const cc        = cirClass(path.avg_cir);
-    const cbadge    = `bcir${cc==='low'?'':' '+cc}`;
-    html+=`<div class="path-card${isBest?' best':''}">
+          }
+        }
+        const tenGCount = path.count_10g || 0;
+        const allTenG = tenGCount === path.hop_count;
+        const cc = cirClass(path.avg_cir);
+        const cbadge = `bcir${cc === 'low' ? '' : ' ' + cc}`;
+        html += `<div class="path-card${isBest ? ' best' : ''}">
       <div class="path-header">
-        <div class="path-num">${idx+1}</div>
-        <span style="font-family:var(--mono);font-size:13px;font-weight:600">${path.hop_count} hop${path.hop_count!==1?'s':''}</span>
+        <div class="path-num">${idx + 1}</div>
+        <span style="font-family:var(--mono);font-size:13px;font-weight:600">${path.hop_count} hop${path.hop_count !== 1 ? 's' : ''}</span>
         <div class="path-meta">
-          ${isBest?'<span class="badge best-badge">★ OPTIMAL</span>':''}
-          <span class="badge ${allTenG?'b10g':'bge'}">${allTenG?'ALL 10GE':'MIXED'}</span>
+          ${isBest ? '<span class="badge best-badge">★ OPTIMAL</span>' : ''}
+          <span class="badge ${allTenG ? 'b10g' : 'bge'}">${allTenG ? 'ALL 10GE' : 'MIXED'}</span>
           <span class="badge b10g">${tenGCount} × 10GE</span>
           ${tenGCount < path.hop_count ? `<span class="badge bge">${path.hop_count - tenGCount} × GE</span>` : ''}
           <span class="badge ${cbadge}">Avg CIR ${path.avg_cir}%</span>
@@ -907,729 +2256,1056 @@ function buildPathCards(paths, label, accentColor, names){
       </div>
       <div class="hop-flow"><div class="hop-list">${hopHtml}</div></div>
     </div>`;
-  });
-  return html;
-}
-
-async function findPath(){
-  const src=document.getElementById('src').value.trim();
-  const tgt=document.getElementById('tgt').value.trim();
-  const errEl=document.getElementById('error-msg');
-  const resEl=document.getElementById('results');
-  errEl.style.display='none';
-  resEl.innerHTML='<div class="loading"><span class="spinner"></span>Searching network graph…</div>';
-  const fd=new FormData(); fd.append('source',src); fd.append('target',tgt);
-  const data=await fetch('/find_path',{method:'POST',body:fd}).then(r=>r.json());
-  resEl.innerHTML='';
-  if(data.error){errEl.textContent='⚠ '+data.error;errEl.style.display='block';return;}
-
-  const azPaths = data.az_paths||[];
-  const zaPaths = data.za_paths||[];
-  const names   = data.names||{};
-
-  // Show place names in input boxes
-  document.getElementById('src-name').textContent = names[src] || '';
-  document.getElementById('tgt-name').textContent = names[tgt] || '';
-  if(!azPaths.length && !zaPaths.length){errEl.textContent='⚠ No paths found';errEl.style.display='block';return;}
-
-  const srcLabel = names[src] ? `${src} (${names[src]})` : src;
-  const tgtLabel = names[tgt] ? `${tgt} (${names[tgt]})` : tgt;
-
-  resEl.innerHTML =
-    `<div style="margin-bottom:28px">${buildPathCards(azPaths, '▶ A → Z  &nbsp; '+srcLabel+' → '+tgtLabel, 'var(--accent)', names)}</div>` +
-    `<div style="border-top:1px solid var(--border);padding-top:24px">${buildPathCards(zaPaths, '◀ Z → A  &nbsp; '+tgtLabel+' → '+srcLabel, 'var(--amber)', names)}</div>`;
-}
-
-function clearSearch(){
-  document.getElementById('src').value='';
-  document.getElementById('tgt').value='';
-  document.getElementById('src-name').textContent='';
-  document.getElementById('tgt-name').textContent='';
-  document.getElementById('results').innerHTML='';
-  document.getElementById('error-msg').style.display='none';
-  document.getElementById('src').focus();
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Upload Modal
-// ─────────────────────────────────────────────────────────────────────────────
-let selectedFile = null;
-
-function openUploadModal(){
-  document.getElementById('upload-modal').classList.add('open');
-}
-function closeUploadModal(){
-  document.getElementById('upload-modal').classList.remove('open');
-  clearFile();
-  document.getElementById('upload-progress').classList.remove('show');
-}
-function handleOverlayClick(e){
-  if(e.target===document.getElementById('upload-modal')) closeUploadModal();
-}
-
-function handleFileSelect(e){
-  const f=e.target.files[0];
-  if(f) setFile(f);
-}
-function handleDragOver(e){
-  e.preventDefault();
-  document.getElementById('drop-zone').classList.add('dragover');
-}
-function handleDragLeave(){
-  document.getElementById('drop-zone').classList.remove('dragover');
-}
-function handleDrop(e){
-  e.preventDefault();
-  document.getElementById('drop-zone').classList.remove('dragover');
-  const f=e.dataTransfer.files[0];
-  if(f) setFile(f);
-}
-function setFile(f){
-  selectedFile=f;
-  const fi=document.getElementById('file-info');
-  document.getElementById('file-name').textContent=f.name;
-  document.getElementById('file-size').textContent=formatBytes(f.size);
-  fi.classList.add('show');
-  document.getElementById('btn-confirm').disabled=false;
-}
-function clearFile(){
-  selectedFile=null;
-  document.getElementById('file-info').classList.remove('show');
-  document.getElementById('file-input').value='';
-  document.getElementById('btn-confirm').disabled=true;
-}
-function formatBytes(b){
-  if(b<1024) return b+'B';
-  if(b<1024*1024) return (b/1024).toFixed(1)+'KB';
-  return (b/1048576).toFixed(1)+'MB';
-}
-
-async function doUpload(){
-  if(!selectedFile) return;
-  const prog=document.getElementById('upload-progress');
-  const fill=document.getElementById('prog-fill');
-  const label=document.getElementById('prog-label');
-  const btn=document.getElementById('btn-confirm');
-
-  prog.classList.add('show');
-  btn.disabled=true;
-  label.textContent='Uploading file…';
-  fill.style.width='20%';
-
-  const fd=new FormData();
-  fd.append('file', selectedFile);
-
-  try{
-    fill.style.width='55%';
-    label.textContent='Processing data…';
-    const resp=await fetch('/upload',{method:'POST',body:fd});
-    fill.style.width='85%';
-    label.textContent='Rebuilding graph…';
-    const data=await resp.json();
-    fill.style.width='100%';
-
-    setTimeout(async ()=>{
-      closeUploadModal();
-      if(data.success){
-        showToast('success','✅','Data refreshed successfully',
-          `${Number(data.total).toLocaleString()} links loaded from ${data.filename}`);
-        updateStatBar(data);
-        reloadNodes();
-        // Reload tables
-        const [r10g, rdown]=await Promise.all([
-          fetch('/api/optimum_10g').then(r=>r.json()),
-          fetch('/api/down_links').then(r=>r.json()),
-        ]);
-        render10g(r10g);
-        renderDown(rdown);
-      } else {
-        showToast('error','❌','Upload failed', data.error||'Unknown error');
-      }
-    }, 400);
-
-  } catch(err){
-    fill.style.width='100%';
-    fill.style.background='var(--red)';
-    label.textContent='Error: '+err.message;
-    btn.disabled=false;
-    showToast('error','❌','Upload failed', err.message);
-  }
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Toast
-// ─────────────────────────────────────────────────────────────────────────────
-let toastTimer=null;
-function showToast(type, icon, title, sub){
-  const t=document.getElementById('toast');
-  document.getElementById('toast-icon').textContent=icon;
-  document.getElementById('toast-title').textContent=title;
-  document.getElementById('toast-sub').textContent=sub;
-  t.className='toast '+type;
-  void t.offsetWidth;
-  t.classList.add('show');
-  clearTimeout(toastTimer);
-  toastTimer=setTimeout(()=>t.classList.remove('show'), 4500);
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// IP Autocomplete
-// ─────────────────────────────────────────────────────────────────────────────
-let allNodes = [];
-let ipNameCache = {};
-const PREFIX = '10.121.';
-
-async function loadNodes(){
-  const [nodes, meta] = await Promise.all([
-    fetch('/api/nodes').then(r=>r.json()),
-    fetch('/api/node_names').then(r=>r.json()),
-  ]);
-  allNodes = nodes;
-  ipNameCache = meta;
-}
-
-function setupAC(inputId, dropId){
-  const inp = document.getElementById(inputId);
-  const drop = document.getElementById(dropId);
-  let activeIdx = -1;
-
-  inp.addEventListener('input', ()=>{
-    const raw = inp.value.trim();
-    // Build the search term: if user typed full IP use as-is, else prefix with 10.121.
-    const search = raw.startsWith('10.') ? raw : PREFIX + raw;
-    const matches = raw === '' ? [] : allNodes.filter(n => n.startsWith(search)).slice(0, 60);
-    activeIdx = -1;
-    if(matches.length === 0){ drop.classList.remove('open'); drop.innerHTML=''; return; }
-    drop.innerHTML = matches.map((ip,i)=>{
-      const suffix = ip.slice(PREFIX.length);
-      const typed  = raw.startsWith('10.') ? raw : raw;
-      const hi     = raw.startsWith('10.')
-        ? ip.replace(raw, `<mark>${raw}</mark>`)
-        : PREFIX + suffix.replace(raw, `<mark>${raw}</mark>`);
-      return `<div class="ac-item" data-ip="${ip}" data-idx="${i}">${hi}</div>`;
-    }).join('');
-    drop.classList.add('open');
-    drop.querySelectorAll('.ac-item').forEach(el=>{
-      el.addEventListener('mousedown', e=>{ e.preventDefault(); selectIP(inp, drop, el.dataset.ip); });
-    });
-  });
-
-  inp.addEventListener('keydown', e=>{
-    const items = drop.querySelectorAll('.ac-item');
-    if(!drop.classList.contains('open') || items.length===0) { if(e.key==='Enter') findPath(); return; }
-    if(e.key==='ArrowDown'){ e.preventDefault(); activeIdx=Math.min(activeIdx+1,items.length-1); highlight(items,activeIdx); }
-    else if(e.key==='ArrowUp'){ e.preventDefault(); activeIdx=Math.max(activeIdx-1,0); highlight(items,activeIdx); }
-    else if(e.key==='Enter'){ e.preventDefault(); if(activeIdx>=0) selectIP(inp,drop,items[activeIdx].dataset.ip); else findPath(); }
-    else if(e.key==='Escape'){ drop.classList.remove('open'); }
-  });
-
-  document.addEventListener('click', e=>{ if(!inp.contains(e.target)&&!drop.contains(e.target)) drop.classList.remove('open'); });
-}
-
-function highlight(items, idx){
-  items.forEach((el,i)=>el.classList.toggle('active', i===idx));
-  if(items[idx]) items[idx].scrollIntoView({block:'nearest'});
-}
-function selectIP(inp, drop, ip){
-  inp.value = ip;
-  drop.classList.remove('open');
-  drop.innerHTML = '';
-  const nameEl = document.getElementById(inp.id + '-name');
-  if(nameEl) nameEl.textContent = ipNameCache[ip] || '';
-}
-
-// Reload node list after data refresh
-function reloadNodes(){ loadNodes(); }
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Report Generator
-// ─────────────────────────────────────────────────────────────────────────────
-let rptPollTimer = null;
-let rptIsLocal   = null;   // null until /report/is_local responds
-let rptTempDir   = null;   // shared session folder on server (filled from server scan + uploads)
-
-async function rptDetectMode(){
-  try{
-    const r = await fetch('/report/is_local');
-    const d = await r.json();
-    rptIsLocal = d.local;
-  }catch(e){ rptIsLocal = true; }
-  // Server folder config section: shown on server PC only
-  document.getElementById('rpt-server-folder-section').style.display = rptIsLocal ? '' : 'none';
-  // Save Location: shown on server PC only
-  document.getElementById('rpt-save-section').style.display = rptIsLocal ? '' : 'none';
-  // Browse Template button opens a server-side dialog — hide for LAN users
-  const tmplBtn = document.getElementById('rpt-tmpl-browse-btn');
-  if(tmplBtn) tmplBtn.style.display = rptIsLocal ? '' : 'none';
-  // Load server input folder path (shown in config section on server PC)
-  if(rptIsLocal){
-    try{
-      const r2 = await fetch('/report/get_input_folder');
-      const d2 = await r2.json();
-      const el = document.getElementById('rpt-server-folder-display');
-      if(el) el.value = d2.folder || '';
-      if(el) el.placeholder = d2.folder ? '' : 'Not configured — click Browse to set';
-    }catch(e){}
-  }
-  // Update progress log hint
-  const logEl = document.getElementById('rpt-log');
-  if(logEl && logEl.textContent.startsWith('Detecting')){
-    logEl.textContent = rptIsLocal
-      ? 'Ready. Click "Scan Server" to auto-fill files, then upload any missing ones. Or use "Upload All from Folder".'
-      : 'Ready. Click "Scan Server" to load server files, then use 📎 to upload your local files. Or use "Upload All from Folder".';
-  }
-}
-
-function rptHandleFolderSelect(input){
-  const files = Array.from(input.files);
-  if(files.length === 0) return;
-  const folderName = files[0].webkitRelativePath
-    ? files[0].webkitRelativePath.split('/')[0] : 'folder';
-  rptLog(`Uploading ${files.length} files from "${folderName}"…`);
-  // Optimistic client-side grid update for immediate feedback
-  _rptMatchFilesToGrid(files, '📁');
-  // Upload all files to server session
-  const fd = new FormData();
-  for(const f of files) fd.append('files', f);
-  fetch('/report/upload_inputs',{method:'POST',body:fd})
-    .then(r=>r.json())
-    .then(d=>{
-      if(d.error){ rptLog('Upload error: '+d.error); return; }
-      rptTempDir = d.temp_dir;
-      rptLog(`✅ ${d.count} files uploaded from "${folderName}". Use 📎 to upload any missing files.`);
-    })
-    .catch(e=>rptLog('Upload failed: '+e.message));
-}
-
-function _rptMatchFilesToGrid(files, sourceIcon){
-  const patterns = {
-    card_off:   ['CARD OFFLINE'],
-    device_off: ['DEVICE OFFLINE'],
-    fan_fail:   ['FAN FAILURE'],
-    dl_fail:    ['CPAN DL FAIL REPORT','DL FAIL REPORT'],
-    dash_down:  ['DASH-DOWN','DASH_DOWN'],
-    dl_down:    ['Down-DL-list'],
-    dl_alarms:  ['DL-alarms'],
-  };
-  for(const [key, prefixes] of Object.entries(patterns)){
-    const match = files.find(f => prefixes.some(p => f.name.toUpperCase().startsWith(p.toUpperCase())));
-    const nameEl = document.getElementById('rpt-f-'+key);
-    const statEl = document.getElementById('rpt-s-'+key);
-    if(!nameEl || !statEl) continue;
-    if(match){
-      nameEl.textContent = match.name; nameEl.style.color = '';
-      statEl.textContent = sourceIcon || '✅';
-    } else {
-      nameEl.textContent = '—'; nameEl.style.color = 'var(--muted)';
-      statEl.textContent = '⬜';
+      });
+      return html;
     }
-  }
-}
 
-async function rptScanServer(){
-  const date_str = rptGetDateStr();
-  const btn = document.getElementById('rpt-scan-server-btn');
-  if(btn){ btn.disabled=true; btn.textContent='⏳ Scanning…'; }
-  rptLog(`Scanning server input folder for ${date_str}…`);
-  try{
-    const r = await fetch('/report/fill_from_server',{
-      method:'POST', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({date: date_str, temp_dir: rptTempDir || ''})
-    });
-    const d = await r.json();
-    if(d.error){ rptLog('Scan error: '+d.error); return; }
-    if(d.message && !d.temp_dir){
-      rptLog('⚠ Server input folder not configured. Ask server PC admin to set it via "Browse…"');
-      return;
+    async function findPath() {
+      const src = document.getElementById('src').value.trim();
+      const tgt = document.getElementById('tgt').value.trim();
+      const errEl = document.getElementById('error-msg');
+      const resEl = document.getElementById('results');
+      errEl.style.display = 'none';
+      resEl.innerHTML = '<div class="loading"><span class="spinner"></span>Searching network graph…</div>';
+      const fd = new FormData(); fd.append('source', src); fd.append('target', tgt);
+      const data = await fetch('/find_path', { method: 'POST', body: fd }).then(r => r.json());
+      resEl.innerHTML = '';
+      if (data.error) { errEl.textContent = '⚠ ' + data.error; errEl.style.display = 'block'; return; }
+
+      const azPaths = data.az_paths || [];
+      const zaPaths = data.za_paths || [];
+      const names = data.names || {};
+
+      // Show place names in input boxes
+      document.getElementById('src-name').textContent = names[src] || '';
+      document.getElementById('tgt-name').textContent = names[tgt] || '';
+      if (!azPaths.length && !zaPaths.length) { errEl.textContent = '⚠ No paths found'; errEl.style.display = 'block'; return; }
+
+      const srcLabel = names[src] ? `${src} (${names[src]})` : src;
+      const tgtLabel = names[tgt] ? `${tgt} (${names[tgt]})` : tgt;
+
+      resEl.innerHTML =
+        `<div style="margin-bottom:28px">${buildPathCards(azPaths, '▶ A → Z  &nbsp; ' + srcLabel + ' → ' + tgtLabel, 'var(--accent)', names)}</div>` +
+        `<div style="border-top:1px solid var(--border);padding-top:24px">${buildPathCards(zaPaths, '◀ Z → A  &nbsp; ' + tgtLabel + ' → ' + srcLabel, 'var(--amber)', names)}</div>`;
     }
-    rptTempDir = d.temp_dir;
-    // Update grid: found files
-    for(const [key, fname] of Object.entries(d.found||{})){
-      const nameEl = document.getElementById('rpt-f-'+key);
-      const statEl = document.getElementById('rpt-s-'+key);
-      if(nameEl){ nameEl.textContent=fname; nameEl.style.color=''; }
-      if(statEl){ statEl.textContent='🖥️'; statEl.title='From server folder'; }
+
+    function clearSearch() {
+      document.getElementById('src').value = '';
+      document.getElementById('tgt').value = '';
+      document.getElementById('src-name').textContent = '';
+      document.getElementById('tgt-name').textContent = '';
+      document.getElementById('results').innerHTML = '';
+      document.getElementById('error-msg').style.display = 'none';
+      document.getElementById('src').focus();
     }
-    // Mark genuinely missing (don't overwrite already-uploaded rows)
-    for(const key of (d.missing||[])){
-      const statEl = document.getElementById('rpt-s-'+key);
-      if(statEl && statEl.textContent === '⬜'){
-        const nameEl = document.getElementById('rpt-f-'+key);
-        if(nameEl){ nameEl.textContent='— Missing'; nameEl.style.color='var(--red)'; }
+
+    // ─────────────────────────────────────────────────────────────────────────────
+    // Upload Modal
+    // ─────────────────────────────────────────────────────────────────────────────
+    let selectedFile = null;
+
+    function openUploadModal() {
+      document.getElementById('upload-modal').classList.add('open');
+    }
+    function closeUploadModal() {
+      document.getElementById('upload-modal').classList.remove('open');
+      clearFile();
+      document.getElementById('upload-progress').classList.remove('show');
+    }
+    function handleOverlayClick(e) {
+      if (e.target === document.getElementById('upload-modal')) closeUploadModal();
+    }
+
+    function handleFileSelect(e) {
+      const f = e.target.files[0];
+      if (f) setFile(f);
+    }
+    function handleDragOver(e) {
+      e.preventDefault();
+      document.getElementById('drop-zone').classList.add('dragover');
+    }
+    function handleDragLeave() {
+      document.getElementById('drop-zone').classList.remove('dragover');
+    }
+    function handleDrop(e) {
+      e.preventDefault();
+      document.getElementById('drop-zone').classList.remove('dragover');
+      const f = e.dataTransfer.files[0];
+      if (f) setFile(f);
+    }
+    function setFile(f) {
+      selectedFile = f;
+      const fi = document.getElementById('file-info');
+      document.getElementById('file-name').textContent = f.name;
+      document.getElementById('file-size').textContent = formatBytes(f.size);
+      fi.classList.add('show');
+      document.getElementById('btn-confirm').disabled = false;
+    }
+    function clearFile() {
+      selectedFile = null;
+      document.getElementById('file-info').classList.remove('show');
+      document.getElementById('file-input').value = '';
+      document.getElementById('btn-confirm').disabled = true;
+    }
+    function formatBytes(b) {
+      if (b < 1024) return b + 'B';
+      if (b < 1024 * 1024) return (b / 1024).toFixed(1) + 'KB';
+      return (b / 1048576).toFixed(1) + 'MB';
+    }
+
+    async function doUpload() {
+      if (!selectedFile) return;
+      const prog = document.getElementById('upload-progress');
+      const fill = document.getElementById('prog-fill');
+      const label = document.getElementById('prog-label');
+      const btn = document.getElementById('btn-confirm');
+
+      prog.classList.add('show');
+      btn.disabled = true;
+      label.textContent = 'Uploading file…';
+      fill.style.width = '20%';
+
+      const fd = new FormData();
+      fd.append('file', selectedFile);
+
+      try {
+        fill.style.width = '55%';
+        label.textContent = 'Processing data…';
+        const resp = await fetch('/upload', { method: 'POST', body: fd });
+        fill.style.width = '85%';
+        label.textContent = 'Rebuilding graph…';
+        const data = await resp.json();
+        fill.style.width = '100%';
+
+        setTimeout(async () => {
+          closeUploadModal();
+          if (data.success) {
+            showToast('success', '✅', 'Data refreshed successfully',
+              `${Number(data.total).toLocaleString()} links loaded from ${data.filename}`);
+            updateStatBar(data);
+            reloadNodes();
+            // Reload tables
+            const [r10g, rdown] = await Promise.all([
+              fetch('/api/optimum_10g').then(r => r.json()),
+              fetch('/api/down_links').then(r => r.json()),
+            ]);
+            render10g(r10g);
+            renderDown(rdown);
+          } else {
+            showToast('error', '❌', 'Upload failed', data.error || 'Unknown error');
+          }
+        }, 400);
+
+      } catch (err) {
+        fill.style.width = '100%';
+        fill.style.background = 'var(--red)';
+        label.textContent = 'Error: ' + err.message;
+        btn.disabled = false;
+        showToast('error', '❌', 'Upload failed', err.message);
       }
     }
-    const missCount = (d.missing||[]).length;
-    rptLog(`✅ Server scan: ${d.count} file(s) found.` +
-      (missCount ? ` ${missCount} missing — use 📎 to upload from this PC.` : ' All files ready!'));
-  } catch(e){ rptLog('Scan failed: '+e.message); }
-  finally{ if(btn){ btn.disabled=false; btn.textContent='🔍 Scan Server'; } }
-}
 
-async function rptUploadSingle(key, input){
-  const file = input.files[0];
-  if(!file) return;
-  const nameEl = document.getElementById('rpt-f-'+key);
-  const statEl = document.getElementById('rpt-s-'+key);
-  if(nameEl){ nameEl.textContent='⏳ Uploading…'; nameEl.style.color='var(--accent)'; }
-  try{
-    const fd = new FormData();
-    fd.append('file', file);
-    if(rptTempDir) fd.append('temp_dir', rptTempDir);
-    const r = await fetch('/report/upload_single',{method:'POST',body:fd});
-    const d = await r.json();
-    if(d.error){
-      if(nameEl){ nameEl.textContent='❌ '+d.error; nameEl.style.color='var(--red)'; }
-      if(statEl) statEl.textContent='❌';
-      return;
+    // ─────────────────────────────────────────────────────────────────────────────
+    // Toast
+    // ─────────────────────────────────────────────────────────────────────────────
+    let toastTimer = null;
+    function showToast(type, icon, title, sub) {
+      const t = document.getElementById('toast');
+      document.getElementById('toast-icon').textContent = icon;
+      document.getElementById('toast-title').textContent = title;
+      document.getElementById('toast-sub').textContent = sub;
+      t.className = 'toast ' + type;
+      void t.offsetWidth;
+      t.classList.add('show');
+      clearTimeout(toastTimer);
+      toastTimer = setTimeout(() => t.classList.remove('show'), 4500);
     }
-    rptTempDir = d.temp_dir;
-    if(nameEl){ nameEl.textContent=d.filename; nameEl.style.color=''; }
-    if(statEl){ statEl.textContent='✅'; statEl.title='Uploaded from this PC'; }
-    rptLog(`📎 Uploaded: ${d.filename}`);
-  } catch(e){
-    if(nameEl){ nameEl.textContent='❌ Upload failed'; nameEl.style.color='var(--red)'; }
-    if(statEl) statEl.textContent='❌';
-  }
-}
 
-async function rptBrowseInputFolder(){
-  const btn = event.currentTarget;
-  btn.disabled=true; btn.textContent='⏳ Opening…';
-  try{
-    const r = await fetch('/report/browse_input_folder');
-    const d = await r.json();
-    if(d.folder){
-      const el = document.getElementById('rpt-server-folder-display');
-      if(el) el.value = d.folder;
-      rptLog(`Server input folder set: ${d.folder}`);
-    }
-  } catch(e){ rptLog('Browse failed: '+e.message); }
-  finally{ btn.disabled=false; btn.textContent='📁 Browse…'; }
-}
+    // ─────────────────────────────────────────────────────────────────────────────
+    // File Transfer (LAN shared folder)
+    // ─────────────────────────────────────────────────────────────────────────────
+    let xferPath = '';
 
-function openReportModal(){
-  document.getElementById('report-modal').classList.add('open');
-  // Reset session state
-  rptTempDir = null;
-  document.getElementById('rpt-folder-input').value = '';
-  // Reset all grid rows
-  const keys = ['card_off','device_off','fan_fail','dl_fail','dash_down','dl_down','dl_alarms'];
-  for(const key of keys){
-    const n=document.getElementById('rpt-f-'+key);
-    const s=document.getElementById('rpt-s-'+key);
-    if(n){ n.textContent='—'; n.style.color='var(--muted)'; }
-    if(s){ s.textContent='⬜'; s.title=''; }
-  }
-  rptInitSelectors();
-  rptCheckTemplate();
-  rptLoadOutputFolder();
-  rptDetectMode();
-}
-
-async function rptLoadOutputFolder(){
-  try{
-    const r = await fetch('/report/get_output_folder');
-    const d = await r.json();
-    const el = document.getElementById('rpt-save-dir');
-    if(el) el.value = d.folder;
-  }catch(e){}
-}
-
-async function openOutputFolder(){
-  try{
-    const btn = document.getElementById('btn-outfolder');
-    if(btn){ btn.disabled=true; btn.textContent='⏳ Opening…'; }
-    await fetch('/report/open_output_folder');
-    if(btn){ btn.disabled=false; btn.innerHTML='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/><polyline points="12 11 12 17"/><polyline points="9 14 12 17 15 14"/></svg>Reports Folder'; }
-  }catch(e){
-    const btn = document.getElementById('btn-outfolder');
-    if(btn){ btn.disabled=false; btn.innerHTML='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/><polyline points="12 11 12 17"/><polyline points="9 14 12 17 15 14"/></svg>Reports Folder'; }
-  }
-}
-
-async function rptBrowseOutputFolder(){
-  try{
-    const r = await fetch('/report/browse_output_folder');
-    const d = await r.json();
-    if(d.folder){
-      const el = document.getElementById('rpt-save-dir');
-      if(el) el.value = d.folder;
-    }
-  }catch(e){}
-}
-function closeReportModal(){
-  document.getElementById('report-modal').classList.remove('open');
-  if(rptPollTimer){ clearInterval(rptPollTimer); rptPollTimer=null; }
-}
-function handleRptOverlayClick(e){
-  if(e.target === document.getElementById('report-modal')) closeReportModal();
-}
-
-function rptInitSelectors(){
-  const today = new Date();
-  const dayEl   = document.getElementById('rpt-day');
-  const monEl   = document.getElementById('rpt-month');
-  const yearEl  = document.getElementById('rpt-year');
-  if(dayEl.options.length > 0) return;  // already initialised
-  for(let d=1;d<=31;d++){
-    const o=document.createElement('option');
-    o.value=o.text=String(d).padStart(2,'0');
-    dayEl.appendChild(o);
-  }
-  const months=['01','02','03','04','05','06','07','08','09','10','11','12'];
-  months.forEach(m=>{ const o=document.createElement('option'); o.value=o.text=m; monEl.appendChild(o); });
-  for(let y=2024;y<=2030;y++){
-    const o=document.createElement('option'); o.value=o.text=String(y); yearEl.appendChild(o);
-  }
-  dayEl.value   = String(today.getDate()).padStart(2,'0');
-  monEl.value   = String(today.getMonth()+1).padStart(2,'0');
-  yearEl.value  = String(today.getFullYear());
-  rptUpdateOutputName();
-}
-
-function rptGetDateStr(){
-  const d=document.getElementById('rpt-day').value;
-  const m=document.getElementById('rpt-month').value;
-  const y=document.getElementById('rpt-year').value;
-  return `${d}-${m}-${y}`;
-}
-
-function rptUpdateOutputName(){
-  const d=document.getElementById('rpt-day').value;
-  const m=document.getElementById('rpt-month').value;
-  const y=document.getElementById('rpt-year').value;
-  if(!d||!m||!y) return;
-  const yy=y.slice(2);
-  document.getElementById('rpt-output').value=`DAILY_CPAN_REPORTS_${d}.${m}.${yy}.xlsx`;
-}
-
-function rptDateChanged(){
-  rptUpdateOutputName();
-}
-
-async function rptBrowseTemplate(){
-  const btn = document.getElementById('rpt-tmpl-browse-btn');
-  btn.disabled = true; btn.textContent = '⏳ Opening…';
-  try{
-    const resp = await fetch('/report/browse_template');
-    const data = await resp.json();
-    if(data.path){
-      document.getElementById('rpt-tmpl-bar').classList.remove('missing');
-      document.getElementById('rpt-tmpl-icon').textContent = '✅';
-      document.getElementById('rpt-tmpl-text').textContent = `Template: ${data.name}`;
-    }
-  } catch(e){ rptLog('Browse template failed: '+e.message); }
-  finally{ btn.disabled=false; btn.textContent='📂 Browse Template'; }
-}
-
-
-async function rptCheckTemplate(){
-  try{
-    const r = await fetch('/report/template_status');
-    const d = await r.json();
-    const bar  = document.getElementById('rpt-tmpl-bar');
-    const icon = document.getElementById('rpt-tmpl-icon');
-    const txt  = document.getElementById('rpt-tmpl-text');
-    if(d.found){
-      bar.classList.remove('missing');
-      icon.textContent='✅';
-      txt.textContent=`Template found: ${d.name}`;
-    } else {
-      bar.classList.add('missing');
-      icon.textContent='❌';
-      txt.textContent='Template (DAILY_CPAN_REPORTS_MASTER*.xlsx) NOT found in server folder';
-    }
-  } catch(e){ /* ignore */ }
-}
-
-const RPT_FILE_KEYS = {
-  card_off:'Card Offline',  device_off:'Device Offline',
-  fan_fail:'Fan Failure',   dl_fail:'CPAN DL Fail',
-  dash_down:'Dash Down',    dl_down:'DL Down RT',
-  dl_alarms:'DL Alarms'
-};
-
-
-function _rptStartPolling(jobId, output){
-  const btn    = document.getElementById('rpt-gen-btn');
-  const dlXlsx = document.getElementById('rpt-dl-xlsx');
-  const dlPdf  = document.getElementById('rpt-dl-pdf');
-  let lastLogLen = 0;
-  rptPollTimer = setInterval(async ()=>{
-    try{
-      const sr = await fetch(`/report/status/${jobId}`);
-      const sd = await sr.json();
-      if(sd.logs && sd.logs.length > lastLogLen){
-        sd.logs.slice(lastLogLen).forEach(l => rptLog(l));
-        lastLogLen = sd.logs.length;
-      }
-      if(sd.status === 'done'){
-        clearInterval(rptPollTimer); rptPollTimer=null;
-        btn.disabled=false; btn.textContent='⚡ Generate Report';
-        const xlsxName = output.endsWith('.xlsx') ? output : output+'.xlsx';
-        dlXlsx.href = `/report/download/${jobId}`;
-        dlXlsx.download = xlsxName;
-        dlXlsx.style.display = 'flex';
-        if(sd.has_pdf){
-          dlPdf.href = `/report/download_pdf/${jobId}`;
-          dlPdf.download = xlsxName.replace('.xlsx', '_PDFs.zip');
-          dlPdf.style.display = 'flex';
+    async function xferCheckAuth() {
+      try {
+        const r = await fetch('/transfer/status');
+        const d = await r.json();
+        if (d.authed) {
+          document.getElementById('xfer-login-card').style.display = 'none';
+          document.getElementById('xfer-manager').style.display = '';
+          xferLoad('');
+        } else {
+          document.getElementById('xfer-login-card').style.display = '';
+          document.getElementById('xfer-manager').style.display = 'none';
         }
-        showToast('success','✅','Report generated!','Click Download XLSX or Download PDF.');
-      } else if(sd.status === 'error'){
-        clearInterval(rptPollTimer); rptPollTimer=null;
-        btn.disabled=false; btn.textContent='⚡ Generate Report';
-        rptLog('FAILED: '+(sd.error||'Unknown error'));
-        showToast('error','❌','Report generation failed', 'Check the progress log for details.');
+      } catch (e) { /* ignore — user can retry */ }
+    }
+
+    async function xferLogin() {
+      const pw = document.getElementById('xfer-password').value;
+      const errEl = document.getElementById('xfer-login-error');
+      errEl.textContent = '';
+      try {
+        const r = await fetch('/transfer/login', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ password: pw })
+        });
+        const d = await r.json();
+        if (d.ok) {
+          document.getElementById('xfer-password').value = '';
+          document.getElementById('xfer-login-card').style.display = 'none';
+          document.getElementById('xfer-manager').style.display = '';
+          xferLoad('');
+        } else {
+          errEl.textContent = d.error || 'Login failed';
+        }
+      } catch (e) { errEl.textContent = 'Network error: ' + e.message; }
+    }
+
+    async function xferLogout() {
+      await fetch('/transfer/logout', { method: 'POST' });
+      document.getElementById('xfer-login-card').style.display = '';
+      document.getElementById('xfer-manager').style.display = 'none';
+    }
+
+    function xferBreadcrumb(path) {
+      const parts = path ? path.split('/').filter(Boolean) : [];
+      const bc = document.getElementById('xfer-breadcrumb');
+      bc.innerHTML = '';
+      const home = document.createElement('a');
+      home.textContent = '🏠 shared_transfer';
+      home.onclick = () => xferLoad('');
+      bc.appendChild(home);
+      let acc = '';
+      parts.forEach(p => {
+        acc += (acc ? '/' : '') + p;
+        const sep = document.createElement('span');
+        sep.className = 'sep'; sep.textContent = '/';
+        bc.appendChild(sep);
+        const link = document.createElement('a');
+        link.textContent = p;
+        const target = acc;
+        link.onclick = () => xferLoad(target);
+        bc.appendChild(link);
+      });
+    }
+
+    async function xferLoad(path) {
+      xferPath = path || '';
+      xferBreadcrumb(xferPath);
+      const body = document.getElementById('xfer-body');
+      body.innerHTML = '<tr><td colspan="5" class="loading"><span class="spinner"></span>Loading…</td></tr>';
+      try {
+        const r = await fetch('/transfer/list?path=' + encodeURIComponent(xferPath));
+        if (r.status === 401) { xferCheckAuth(); return; }
+        const d = await r.json();
+        if (d.error) {
+          body.innerHTML = '';
+          const tr = document.createElement('tr'); const td = document.createElement('td');
+          td.colSpan = 5; td.textContent = d.error;
+          tr.appendChild(td); body.appendChild(tr);
+          return;
+        }
+        body.innerHTML = '';
+        if (!d.entries.length) {
+          const tr = document.createElement('tr');
+          const td = document.createElement('td');
+          td.colSpan = 5; td.style.cssText = 'color:var(--muted);text-align:center;padding:24px';
+          td.textContent = 'Empty folder — upload or drag files above.';
+          tr.appendChild(td); body.appendChild(tr);
+          return;
+        }
+        d.entries.forEach(e => {
+          const tr = document.createElement('tr');
+
+          const iconTd = document.createElement('td');
+          iconTd.className = 'xfer-row-icon';
+          tr.appendChild(iconTd);
+
+          const nameTd = document.createElement('td');
+          if (e.is_dir) {
+            const link = document.createElement('span');
+            link.className = 'xfer-folder-link';
+            link.textContent = '📁 ' + e.name;
+            link.onclick = () => xferLoad((xferPath ? xferPath + '/' : '') + e.name);
+            nameTd.appendChild(link);
+          } else {
+            nameTd.textContent = '📄 ' + e.name;
+          }
+          tr.appendChild(nameTd);
+
+          const sizeTd = document.createElement('td');
+          sizeTd.textContent = e.is_dir ? '—' : formatBytes(e.size);
+          tr.appendChild(sizeTd);
+
+          const modTd = document.createElement('td');
+          modTd.textContent = e.modified;
+          tr.appendChild(modTd);
+
+          const actionsTd = document.createElement('td');
+          if (e.is_dir) {
+            const zipBtn = document.createElement('button');
+            zipBtn.className = 'xfer-action-btn'; zipBtn.textContent = '⬇ Zip';
+            zipBtn.title = 'Download this folder as a .zip';
+            zipBtn.onclick = () => xferDownloadZip(e.name);
+            actionsTd.appendChild(zipBtn);
+          } else {
+            const dlBtn = document.createElement('button');
+            dlBtn.className = 'xfer-action-btn'; dlBtn.textContent = '⬇';
+            dlBtn.title = 'Download "' + e.name + '"';
+            dlBtn.onclick = () => xferDownload(e.name);
+            actionsTd.appendChild(dlBtn);
+          }
+          const delBtn = document.createElement('button');
+          delBtn.className = 'xfer-action-btn danger'; delBtn.textContent = '🗑';
+          delBtn.title = 'Delete ' + (e.is_dir ? 'folder' : 'file') + ' "' + e.name + '"';
+          delBtn.onclick = () => xferDelete(e.name, e.is_dir);
+          actionsTd.appendChild(delBtn);
+          tr.appendChild(actionsTd);
+
+          body.appendChild(tr);
+        });
+      } catch (e) {
+        body.innerHTML = '';
+        const tr = document.createElement('tr'); const td = document.createElement('td');
+        td.colSpan = 5; td.textContent = 'Error: ' + e.message;
+        tr.appendChild(td); body.appendChild(tr);
       }
-    } catch(e){ /* ignore poll errors */ }
-  }, 1500);
-}
+    }
 
-async function rptGenerate(){
-  const output   = document.getElementById('rpt-output').value.trim();
-  const date_str = rptGetDateStr();
-  if(!output){ alert('Please enter an output filename.'); return; }
+    function xferDragOver(e) { e.preventDefault(); document.getElementById('xfer-drop-zone').classList.add('dragover'); }
+    function xferDragLeave() { document.getElementById('xfer-drop-zone').classList.remove('dragover'); }
+    function xferDrop(e) {
+      e.preventDefault();
+      document.getElementById('xfer-drop-zone').classList.remove('dragover');
+      if (e.dataTransfer.files.length) xferUploadFiles(e.dataTransfer.files);
+    }
 
-  const btn    = document.getElementById('rpt-gen-btn');
-  const dlXlsx = document.getElementById('rpt-dl-xlsx');
-  const dlPdf  = document.getElementById('rpt-dl-pdf');
-  btn.disabled = true;
-  dlXlsx.style.display = 'none';
-  dlPdf.style.display  = 'none';
-  rptLogClear();
+    async function xferUploadFiles(fileList) {
+      if (!fileList || !fileList.length) return;
+      const prog = document.getElementById('xfer-progress');
+      const fill = document.getElementById('xfer-prog-fill');
+      const label = document.getElementById('xfer-prog-label');
+      prog.classList.add('show');
+      fill.style.width = '15%';
+      label.textContent = `Uploading ${fileList.length} file(s)…`;
 
-  if(!rptTempDir){
-    alert('No files loaded. Click "Scan Server" to load server files, or use 📎 / "Upload All from Folder" to upload files from this PC.');
-    btn.disabled=false; return;
-  }
-  btn.textContent = '⏳ Generating…';
-  rptLog('Starting report generation…');
-  try{
-    const resp = await fetch('/report/start',{
-      method:'POST', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({temp_dir: rptTempDir, date: date_str, output})
+      const fd = new FormData();
+      fd.append('path', xferPath);
+      for (const f of fileList) fd.append('files', f);
+
+      try {
+        fill.style.width = '60%';
+        const r = await fetch('/transfer/upload', { method: 'POST', body: fd });
+        const d = await r.json();
+        fill.style.width = '100%';
+        if (d.ok) {
+          showToast('success', '✅', 'Upload complete', `${d.saved.length} file(s) saved to shared_transfer${xferPath ? '/' + xferPath : ''}`);
+          xferLoad(xferPath);
+        } else {
+          showToast('error', '❌', 'Upload failed', d.error || 'Unknown error');
+        }
+      } catch (e) {
+        showToast('error', '❌', 'Upload failed', e.message);
+      } finally {
+        setTimeout(() => { prog.classList.remove('show'); fill.style.width = '0'; }, 500);
+        document.getElementById('xfer-file-input').value = '';
+      }
+    }
+
+    async function xferPromptMkdir() {
+      const name = prompt('New folder name:');
+      if (!name) return;
+      try {
+        const r = await fetch('/transfer/mkdir', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ path: xferPath, name })
+        });
+        const d = await r.json();
+        if (d.ok) { xferLoad(xferPath); }
+        else showToast('error', '❌', 'Could not create folder', d.error || 'Unknown error');
+      } catch (e) { showToast('error', '❌', 'Could not create folder', e.message); }
+    }
+
+    function xferDownload(name) {
+      const url = '/transfer/download?path=' + encodeURIComponent((xferPath ? xferPath + '/' : '') + name);
+      window.location.href = url;
+    }
+
+    function xferDownloadZip(name) {
+      const p = name ? (xferPath ? xferPath + '/' : '') + name : xferPath;
+      const url = '/transfer/download_zip?path=' + encodeURIComponent(p);
+      window.location.href = url;
+    }
+
+    async function xferDelete(name, isDir) {
+      if (!confirm(`Delete ${isDir ? 'folder' : 'file'} "${name}"? This cannot be undone.`)) return;
+      try {
+        const r = await fetch('/transfer/delete', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ path: xferPath, name })
+        });
+        const d = await r.json();
+        if (d.ok) { xferLoad(xferPath); }
+        else showToast('error', '❌', 'Delete failed', d.error || 'Unknown error');
+      } catch (e) { showToast('error', '❌', 'Delete failed', e.message); }
+    }
+
+    function xferShowChangePw() {
+      document.getElementById('xfer-pw-current').value = '';
+      document.getElementById('xfer-pw-new').value = '';
+      document.getElementById('xfer-pw-error').textContent = '';
+      document.getElementById('xfer-pw-modal').classList.add('open');
+    }
+    function xferHideChangePw() { document.getElementById('xfer-pw-modal').classList.remove('open'); }
+
+    async function xferChangePassword() {
+      const current = document.getElementById('xfer-pw-current').value;
+      const newPw = document.getElementById('xfer-pw-new').value;
+      const errEl = document.getElementById('xfer-pw-error');
+      try {
+        const r = await fetch('/transfer/change_password', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ current, new: newPw })
+        });
+        const d = await r.json();
+        if (d.ok) {
+          xferHideChangePw();
+          showToast('success', '✅', 'Password changed', 'Use the new password next time you log in.');
+        } else {
+          errEl.textContent = d.error || 'Failed to change password';
+        }
+      } catch (e) { errEl.textContent = 'Network error: ' + e.message; }
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────────
+    // IP Autocomplete
+    // ─────────────────────────────────────────────────────────────────────────────
+    let allNodes = [];
+    let ipNameCache = {};
+    const PREFIX = '10.121.';
+
+    async function loadNodes() {
+      const [nodes, meta] = await Promise.all([
+        fetch('/api/nodes').then(r => r.json()),
+        fetch('/api/node_names').then(r => r.json()),
+      ]);
+      allNodes = nodes;
+      ipNameCache = meta;
+    }
+
+    function setupAC(inputId, dropId) {
+      const inp = document.getElementById(inputId);
+      const drop = document.getElementById(dropId);
+      let activeIdx = -1;
+
+      inp.addEventListener('input', () => {
+        const raw = inp.value.trim();
+        // Build the search term: if user typed full IP use as-is, else prefix with 10.121.
+        const search = raw.startsWith('10.') ? raw : PREFIX + raw;
+        const matches = raw === '' ? [] : allNodes.filter(n => n.startsWith(search)).slice(0, 60);
+        activeIdx = -1;
+        if (matches.length === 0) { drop.classList.remove('open'); drop.innerHTML = ''; return; }
+        drop.innerHTML = matches.map((ip, i) => {
+          const suffix = ip.slice(PREFIX.length);
+          const typed = raw.startsWith('10.') ? raw : raw;
+          const hi = raw.startsWith('10.')
+            ? ip.replace(raw, `<mark>${raw}</mark>`)
+            : PREFIX + suffix.replace(raw, `<mark>${raw}</mark>`);
+          return `<div class="ac-item" data-ip="${ip}" data-idx="${i}">${hi}</div>`;
+        }).join('');
+        drop.classList.add('open');
+        drop.querySelectorAll('.ac-item').forEach(el => {
+          el.addEventListener('mousedown', e => { e.preventDefault(); selectIP(inp, drop, el.dataset.ip); });
+        });
+      });
+
+      inp.addEventListener('keydown', e => {
+        const items = drop.querySelectorAll('.ac-item');
+        if (!drop.classList.contains('open') || items.length === 0) { if (e.key === 'Enter') findPath(); return; }
+        if (e.key === 'ArrowDown') { e.preventDefault(); activeIdx = Math.min(activeIdx + 1, items.length - 1); highlight(items, activeIdx); }
+        else if (e.key === 'ArrowUp') { e.preventDefault(); activeIdx = Math.max(activeIdx - 1, 0); highlight(items, activeIdx); }
+        else if (e.key === 'Enter') { e.preventDefault(); if (activeIdx >= 0) selectIP(inp, drop, items[activeIdx].dataset.ip); else findPath(); }
+        else if (e.key === 'Escape') { drop.classList.remove('open'); }
+      });
+
+      document.addEventListener('click', e => { if (!inp.contains(e.target) && !drop.contains(e.target)) drop.classList.remove('open'); });
+    }
+
+    function highlight(items, idx) {
+      items.forEach((el, i) => el.classList.toggle('active', i === idx));
+      if (items[idx]) items[idx].scrollIntoView({ block: 'nearest' });
+    }
+    function selectIP(inp, drop, ip) {
+      inp.value = ip;
+      drop.classList.remove('open');
+      drop.innerHTML = '';
+      const nameEl = document.getElementById(inp.id + '-name');
+      if (nameEl) nameEl.textContent = ipNameCache[ip] || '';
+    }
+
+    // Reload node list after data refresh
+    function reloadNodes() { loadNodes(); }
+
+    // ─────────────────────────────────────────────────────────────────────────────
+    // Report Generator
+    // ─────────────────────────────────────────────────────────────────────────────
+    let rptPollTimer = null;
+    let rptIsLocal = null;   // null until /report/is_local responds
+    let rptTempDir = null;   // shared session folder on server (filled from server scan + uploads)
+
+    async function rptDetectMode() {
+      try {
+        const r = await fetch('/report/is_local');
+        const d = await r.json();
+        rptIsLocal = d.local;
+      } catch (e) { rptIsLocal = true; }
+      // Server folder config section: shown on server PC only
+      document.getElementById('rpt-server-folder-section').style.display = rptIsLocal ? '' : 'none';
+      // Save Location: shown to everyone — typed shared-path input works over LAN too.
+      // Only the native "Browse" dialog is server-PC only (it opens on the server's screen).
+      const saveBrowseBtn = document.getElementById('rpt-save-browse-btn');
+      if (saveBrowseBtn) saveBrowseBtn.style.display = rptIsLocal ? '' : 'none';
+      // Browse Template button opens a server-side dialog — hide for LAN users
+      const tmplBtn = document.getElementById('rpt-tmpl-browse-btn');
+      if (tmplBtn) tmplBtn.style.display = rptIsLocal ? '' : 'none';
+      // Header "Reports Folder" button opens Explorer on the server machine only —
+      // hide it for LAN users so it doesn't look like a no-op / misdirect them.
+      const outFolderBtn = document.getElementById('btn-outfolder');
+      if (outFolderBtn) outFolderBtn.style.display = rptIsLocal ? '' : 'none';
+      // Load server input folder path (shown in config section on server PC)
+      if (rptIsLocal) {
+        try {
+          const r2 = await fetch('/report/get_input_folder');
+          const d2 = await r2.json();
+          const el = document.getElementById('rpt-server-folder-display');
+          if (el) el.value = d2.folder || '';
+          if (el) el.placeholder = d2.folder ? '' : 'Not configured — click Browse to set';
+        } catch (e) { }
+      }
+      // Update progress log hint
+      const logEl = document.getElementById('rpt-log');
+      if (logEl && logEl.textContent.startsWith('Detecting')) {
+        logEl.textContent = rptIsLocal
+          ? 'Ready. Click "Scan Server" to auto-fill files, then upload any missing ones. Or use "Upload All from Folder".'
+          : 'Ready. Click "Scan Server" to load server files, then use 📎 to upload your local files. Or use "Upload All from Folder".';
+      }
+    }
+
+    function rptHandleFolderSelect(input) {
+      const files = Array.from(input.files);
+      if (files.length === 0) return;
+      const folderName = files[0].webkitRelativePath
+        ? files[0].webkitRelativePath.split('/')[0] : 'folder';
+      rptLog(`Uploading ${files.length} files from "${folderName}"…`);
+      // Optimistic client-side grid update for immediate feedback
+      _rptMatchFilesToGrid(files, '📁');
+      // Upload all files to server session
+      const fd = new FormData();
+      for (const f of files) fd.append('files', f);
+      fetch('/report/upload_inputs', { method: 'POST', body: fd })
+        .then(r => r.json())
+        .then(d => {
+          if (d.error) { rptLog('Upload error: ' + d.error); return; }
+          rptTempDir = d.temp_dir;
+          rptLog(`✅ ${d.count} files uploaded from "${folderName}". Use 📎 to upload any missing files.`);
+        })
+        .catch(e => rptLog('Upload failed: ' + e.message));
+    }
+
+    function rptUpdateCoveredStatus() {
+      const combinedStatEl = document.getElementById('rpt-s-combined_fail');
+      const combinedStat = combinedStatEl ? combinedStatEl.textContent : '⬜';
+      const isCombinedPresent = combinedStat !== '⬜' && combinedStat !== '❌';
+
+      const coveredKeys = ['card_off', 'device_off', 'fan_fail'];
+      coveredKeys.forEach(key => {
+        const nameEl = document.getElementById('rpt-f-' + key);
+        const statEl = document.getElementById('rpt-s-' + key);
+        if (!nameEl || !statEl) return;
+
+        if (isCombinedPresent) {
+          if (statEl.textContent === '⬜' || statEl.textContent === '❌' || nameEl.textContent.includes('Missing')) {
+            nameEl.textContent = 'Included in Combined XLS';
+            nameEl.style.color = '#059669';
+            statEl.textContent = '⚡';
+            statEl.title = 'Covered by CPAN Card FAN Device Fail file';
+          }
+        } else {
+          if (statEl.textContent === '⚡') {
+            nameEl.textContent = '—';
+            nameEl.style.color = 'var(--muted)';
+            statEl.textContent = '⬜';
+            statEl.title = '';
+          }
+        }
+      });
+    }
+
+    function _rptMatchFilesToGrid(files, sourceIcon) {
+      const patterns = {
+        combined_fail: ['CPAN Card FAN Device Fail', 'Combined_Failures', 'Combined Failures'],
+        card_off: ['CARD OFFLINE'],
+        device_off: ['DEVICE OFFLINE'],
+        fan_fail: ['FAN FAILURE'],
+        dl_fail: ['CPAN DL FAIL REPORT', 'DL FAIL REPORT'],
+        dash_down: ['DASH-DOWN', 'DASH_DOWN'],
+        dl_down: ['Down-DL-list'],
+        dl_alarms: ['DL-alarms'],
+      };
+      for (const [key, prefixes] of Object.entries(patterns)) {
+        const match = files.find(f => prefixes.some(p => f.name.toUpperCase().startsWith(p.toUpperCase())));
+        const nameEl = document.getElementById('rpt-f-' + key);
+        const statEl = document.getElementById('rpt-s-' + key);
+        if (!nameEl || !statEl) continue;
+        if (match) {
+          nameEl.textContent = match.name; nameEl.style.color = '';
+          statEl.textContent = sourceIcon || '✅';
+        } else {
+          nameEl.textContent = '—'; nameEl.style.color = 'var(--muted)';
+          statEl.textContent = '⬜';
+        }
+      }
+      rptUpdateCoveredStatus();
+    }
+
+    async function rptScanServer() {
+      const date_str = rptGetDateStr();
+      const btn = document.getElementById('rpt-scan-server-btn');
+      if (btn) { btn.disabled = true; btn.textContent = '⏳ Scanning…'; }
+      rptLog(`Scanning server input folder for ${date_str}…`);
+      try {
+        const r = await fetch('/report/fill_from_server', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ date: date_str, temp_dir: rptTempDir || '' })
+        });
+        const d = await r.json();
+        if (d.error) { rptLog('Scan error: ' + d.error); return; }
+        if (d.message && !d.temp_dir) {
+          rptLog('⚠ Server input folder not configured. Ask server PC admin to set it via "Browse…"');
+          return;
+        }
+        rptTempDir = d.temp_dir;
+        // Update grid: found files
+        for (const [key, fname] of Object.entries(d.found || {})) {
+          const nameEl = document.getElementById('rpt-f-' + key);
+          const statEl = document.getElementById('rpt-s-' + key);
+          if (nameEl) { nameEl.textContent = fname; nameEl.style.color = ''; }
+          if (statEl) { statEl.textContent = '🖥️'; statEl.title = 'From server folder'; }
+        }
+        // Mark genuinely missing (don't overwrite already-uploaded rows)
+        for (const key of (d.missing || [])) {
+          const statEl = document.getElementById('rpt-s-' + key);
+          if (statEl && statEl.textContent === '⬜') {
+            const nameEl = document.getElementById('rpt-f-' + key);
+            if (nameEl) { nameEl.textContent = '— Missing'; nameEl.style.color = 'var(--red)'; }
+          }
+        }
+        const missCount = (d.missing || []).length;
+        rptLog(`✅ Server scan: ${d.count} file(s) found.` +
+          (missCount ? ` ${missCount} missing — use 📎 to upload from this PC.` : ' All files ready!'));
+        rptUpdateCoveredStatus();
+      } catch (e) { rptLog('Scan failed: ' + e.message); }
+      finally { if (btn) { btn.disabled = false; btn.textContent = '🔍 Scan Server'; } }
+    }
+
+    async function rptUploadSingle(key, input) {
+      const file = input.files[0];
+      if (!file) return;
+      const nameEl = document.getElementById('rpt-f-' + key);
+      const statEl = document.getElementById('rpt-s-' + key);
+      if (nameEl) { nameEl.textContent = '⏳ Uploading…'; nameEl.style.color = 'var(--accent)'; }
+      try {
+        const fd = new FormData();
+        fd.append('file', file);
+        if (rptTempDir) fd.append('temp_dir', rptTempDir);
+        const r = await fetch('/report/upload_single', { method: 'POST', body: fd });
+        const d = await r.json();
+        if (d.error) {
+          if (nameEl) { nameEl.textContent = '❌ ' + d.error; nameEl.style.color = 'var(--red)'; }
+          if (statEl) statEl.textContent = '❌';
+          return;
+        }
+        rptTempDir = d.temp_dir;
+        if (nameEl) { nameEl.textContent = d.filename; nameEl.style.color = ''; }
+        if (statEl) { statEl.textContent = '✅'; statEl.title = 'Uploaded from this PC'; }
+        rptLog(`📎 Uploaded: ${d.filename}`);
+        rptUpdateCoveredStatus();
+      } catch (e) {
+        if (nameEl) { nameEl.textContent = '❌ Upload failed'; nameEl.style.color = 'var(--red)'; }
+        if (statEl) statEl.textContent = '❌';
+      }
+    }
+
+    async function rptBrowseInputFolder() {
+      const btn = event.currentTarget;
+      btn.disabled = true; btn.textContent = '⏳ Opening…';
+      try {
+        const r = await fetch('/report/browse_input_folder');
+        const d = await r.json();
+        if (d.folder) {
+          const el = document.getElementById('rpt-server-folder-display');
+          if (el) el.value = d.folder;
+          rptLog(`Server input folder set: ${d.folder}`);
+        }
+      } catch (e) { rptLog('Browse failed: ' + e.message); }
+      finally { btn.disabled = false; btn.textContent = '📁 Browse…'; }
+    }
+
+    function openReportModal() {
+      document.getElementById('report-modal').classList.add('open');
+      // Reset session state
+      rptTempDir = null;
+      document.getElementById('rpt-folder-input').value = '';
+      // Reset all grid rows
+      const keys = ['combined_fail', 'card_off', 'device_off', 'fan_fail', 'dl_fail', 'dash_down', 'dl_down', 'dl_alarms'];
+      for (const key of keys) {
+        const n = document.getElementById('rpt-f-' + key);
+        const s = document.getElementById('rpt-s-' + key);
+        if (n) {
+          n.textContent = (key === 'combined_fail') ? '— Optional combined CSV/XLS file' : '—';
+          n.style.color = 'var(--muted)';
+        }
+        if (s) { s.textContent = '⬜'; s.title = ''; }
+      }
+      rptInitSelectors();
+      rptCheckTemplate();
+      rptLoadOutputFolder();
+      rptDetectMode();
+      rptUpdateCoveredStatus();
+    }
+
+    async function rptLoadOutputFolder() {
+      try {
+        const r = await fetch('/report/get_output_folder');
+        const d = await r.json();
+        const el = document.getElementById('rpt-save-dir');
+        if (el) el.value = d.folder;
+        const prev = document.getElementById('rpt-save-preview');
+        if (prev) prev.textContent = d.today_folder ? `Today's reports save to: ${d.today_folder}` : '';
+      } catch (e) { }
+    }
+
+    async function rptSaveOutputFolder() {
+      const el = document.getElementById('rpt-save-dir');
+      const btn = document.getElementById('rpt-save-save-btn');
+      const folder = el ? el.value.trim() : '';
+      if (!folder) return;
+      try {
+        if (btn) { btn.disabled = true; btn.textContent = '⏳ Saving…'; }
+        const r = await fetch('/report/set_output_folder', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ folder })
+        });
+        const d = await r.json();
+        if (d.error) {
+          alert(`Could not use that folder: ${d.error}`);
+        } else {
+          await rptLoadOutputFolder();
+        }
+      } catch (e) {
+        alert('Could not reach the server to save the folder.');
+      } finally {
+        if (btn) { btn.disabled = false; btn.textContent = '💾 Save'; }
+      }
+    }
+
+    async function openOutputFolder() {
+      try {
+        const btn = document.getElementById('btn-outfolder');
+        if (btn) { btn.disabled = true; btn.textContent = '⏳ Opening…'; }
+        await fetch('/report/open_output_folder');
+        if (btn) { btn.disabled = false; btn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/><polyline points="12 11 12 17"/><polyline points="9 14 12 17 15 14"/></svg>Reports Folder'; }
+      } catch (e) {
+        const btn = document.getElementById('btn-outfolder');
+        if (btn) { btn.disabled = false; btn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/><polyline points="12 11 12 17"/><polyline points="9 14 12 17 15 14"/></svg>Reports Folder'; }
+      }
+    }
+
+    async function rptBrowseOutputFolder() {
+      try {
+        const r = await fetch('/report/browse_output_folder');
+        const d = await r.json();
+        if (d.folder) {
+          await rptLoadOutputFolder();
+        }
+      } catch (e) { }
+    }
+    function closeReportModal() {
+      document.getElementById('report-modal').classList.remove('open');
+      if (rptPollTimer) { clearInterval(rptPollTimer); rptPollTimer = null; }
+    }
+    function handleRptOverlayClick(e) {
+      if (e.target === document.getElementById('report-modal')) closeReportModal();
+    }
+
+    function rptInitSelectors() {
+      const today = new Date();
+      const dayEl = document.getElementById('rpt-day');
+      const monEl = document.getElementById('rpt-month');
+      const yearEl = document.getElementById('rpt-year');
+      if (dayEl.options.length > 0) return;  // already initialised
+      for (let d = 1; d <= 31; d++) {
+        const o = document.createElement('option');
+        o.value = o.text = String(d).padStart(2, '0');
+        dayEl.appendChild(o);
+      }
+      const months = ['01', '02', '03', '04', '05', '06', '07', '08', '09', '10', '11', '12'];
+      months.forEach(m => { const o = document.createElement('option'); o.value = o.text = m; monEl.appendChild(o); });
+      for (let y = 2024; y <= 2030; y++) {
+        const o = document.createElement('option'); o.value = o.text = String(y); yearEl.appendChild(o);
+      }
+      dayEl.value = String(today.getDate()).padStart(2, '0');
+      monEl.value = String(today.getMonth() + 1).padStart(2, '0');
+      yearEl.value = String(today.getFullYear());
+      rptUpdateOutputName();
+    }
+
+    function rptGetDateStr() {
+      const d = document.getElementById('rpt-day').value;
+      const m = document.getElementById('rpt-month').value;
+      const y = document.getElementById('rpt-year').value;
+      return `${d}-${m}-${y}`;
+    }
+
+    function rptUpdateOutputName() {
+      const d = document.getElementById('rpt-day').value;
+      const m = document.getElementById('rpt-month').value;
+      const y = document.getElementById('rpt-year').value;
+      if (!d || !m || !y) return;
+      const yy = y.slice(2);
+      document.getElementById('rpt-output').value = `DAILY_CPAN_REPORTS_${d}.${m}.${yy}.xlsx`;
+    }
+
+    function rptDateChanged() {
+      rptUpdateOutputName();
+    }
+
+    async function rptBrowseTemplate() {
+      const btn = document.getElementById('rpt-tmpl-browse-btn');
+      btn.disabled = true; btn.textContent = '⏳ Opening…';
+      try {
+        const resp = await fetch('/report/browse_template');
+        const data = await resp.json();
+        if (data.path) {
+          document.getElementById('rpt-tmpl-bar').classList.remove('missing');
+          document.getElementById('rpt-tmpl-icon').textContent = '✅';
+          document.getElementById('rpt-tmpl-text').textContent = `Template: ${data.name}`;
+        }
+      } catch (e) { rptLog('Browse template failed: ' + e.message); }
+      finally { btn.disabled = false; btn.textContent = '📂 Browse Template'; }
+    }
+
+
+    async function rptCheckTemplate() {
+      try {
+        const r = await fetch('/report/template_status');
+        const d = await r.json();
+        const bar = document.getElementById('rpt-tmpl-bar');
+        const icon = document.getElementById('rpt-tmpl-icon');
+        const txt = document.getElementById('rpt-tmpl-text');
+        if (d.found) {
+          bar.classList.remove('missing');
+          icon.textContent = '✅';
+          txt.textContent = `Template found: ${d.name}`;
+        } else {
+          bar.classList.add('missing');
+          icon.textContent = '❌';
+          txt.textContent = 'Template (DAILY_CPAN_REPORTS_MASTER*.xlsx) NOT found in server folder';
+        }
+      } catch (e) { /* ignore */ }
+    }
+
+    const RPT_FILE_KEYS = {
+      card_off: 'Card Offline', device_off: 'Device Offline',
+      fan_fail: 'Fan Failure', dl_fail: 'CPAN DL Fail',
+      dash_down: 'Dash Down', dl_down: 'DL Down RT',
+      dl_alarms: 'DL Alarms'
+    };
+
+
+    function _rptStartPolling(jobId, output) {
+      const btn = document.getElementById('rpt-gen-btn');
+      const dlXlsx = document.getElementById('rpt-dl-xlsx');
+      const dlPdf = document.getElementById('rpt-dl-pdf');
+      let lastLogLen = 0;
+      rptPollTimer = setInterval(async () => {
+        try {
+          const sr = await fetch(`/report/status/${jobId}`);
+          const sd = await sr.json();
+          if (sd.logs && sd.logs.length > lastLogLen) {
+            sd.logs.slice(lastLogLen).forEach(l => rptLog(l));
+            lastLogLen = sd.logs.length;
+          }
+          if (sd.status === 'done') {
+            clearInterval(rptPollTimer); rptPollTimer = null;
+            btn.disabled = false; btn.textContent = '⚡ Generate Report';
+            const xlsxName = output.endsWith('.xlsx') ? output : output + '.xlsx';
+            dlXlsx.href = `/report/download/${jobId}`;
+            dlXlsx.download = xlsxName;
+            dlXlsx.style.display = 'flex';
+            if (sd.has_pdf) {
+              dlPdf.href = `/report/download_pdf/${jobId}`;
+              dlPdf.download = xlsxName.replace('.xlsx', '_PDFs.zip');
+              dlPdf.style.display = 'flex';
+            }
+            showToast('success', '✅', 'Report generated!', 'Click Download XLSX or Download PDF.');
+          } else if (sd.status === 'error') {
+            clearInterval(rptPollTimer); rptPollTimer = null;
+            btn.disabled = false; btn.textContent = '⚡ Generate Report';
+            rptLog('FAILED: ' + (sd.error || 'Unknown error'));
+            showToast('error', '❌', 'Report generation failed', 'Check the progress log for details.');
+          }
+        } catch (e) { /* ignore poll errors */ }
+      }, 1500);
+    }
+
+    async function rptGenerate() {
+      const output = document.getElementById('rpt-output').value.trim();
+      const date_str = rptGetDateStr();
+      if (!output) { alert('Please enter an output filename.'); return; }
+
+      const btn = document.getElementById('rpt-gen-btn');
+      const dlXlsx = document.getElementById('rpt-dl-xlsx');
+      const dlPdf = document.getElementById('rpt-dl-pdf');
+      btn.disabled = true;
+      dlXlsx.style.display = 'none';
+      dlPdf.style.display = 'none';
+      rptLogClear();
+
+      if (!rptTempDir) {
+        alert('No files loaded. Click "Scan Server" to load server files, or use 📎 / "Upload All from Folder" to upload files from this PC.');
+        btn.disabled = false; return;
+      }
+      btn.textContent = '⏳ Generating…';
+      rptLog('Starting report generation…');
+      try {
+        const resp = await fetch('/report/start', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ temp_dir: rptTempDir, date: date_str, output })
+        });
+        const data = await resp.json();
+        if (data.error) { rptLog('Error: ' + data.error); btn.disabled = false; btn.textContent = '⚡ Generate Report'; return; }
+        rptLog(`Job started (${data.job_id}), please wait…`);
+        _rptStartPolling(data.job_id, output);
+      } catch (e) {
+        rptLog('Request failed: ' + e.message);
+        btn.disabled = false; btn.textContent = '⚡ Generate Report';
+      }
+    }
+
+    function rptLog(msg) {
+      const el = document.getElementById('rpt-log');
+      el.textContent += (el.textContent ? '\n' : '') + msg;
+      el.scrollTop = el.scrollHeight;
+    }
+    function rptLogClear() {
+      document.getElementById('rpt-log').textContent = '';
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────────
+    // Docket Report Modal
+    // ─────────────────────────────────────────────────────────────────────────────
+    let dktPollTimer = null;
+
+    function openDocketModal() {
+      document.getElementById('docket-modal').classList.add('open');
+      const dateEl = document.getElementById('dkt-date');
+      if (!dateEl.value) {
+        const today = new Date();
+        dateEl.value = today.toISOString().slice(0, 10);  // yyyy-mm-dd for <input type=date>
+      }
+      dktLogClear();
+      document.getElementById('dkt-dl').style.display = 'none';
+      const btn = document.getElementById('dkt-gen-btn');
+      btn.disabled = false; btn.textContent = '⚡ Generate Report';
+    }
+
+    function closeDocketModal() {
+      document.getElementById('docket-modal').classList.remove('open');
+      if (dktPollTimer) { clearInterval(dktPollTimer); dktPollTimer = null; }
+    }
+
+    function handleDktOverlayClick(e) {
+      if (e.target === document.getElementById('docket-modal')) closeDocketModal();
+    }
+
+    function dktLog(msg) {
+      const el = document.getElementById('dkt-log');
+      el.textContent += (el.textContent ? '\n' : '') + msg;
+      el.scrollTop = el.scrollHeight;
+    }
+    function dktLogClear() {
+      document.getElementById('dkt-log').textContent = '';
+    }
+
+    function _dktStartPolling(jobId, dateDdMmYyyy) {
+      const btn = document.getElementById('dkt-gen-btn');
+      const dl = document.getElementById('dkt-dl');
+      let lastLogLen = 0;
+      dktPollTimer = setInterval(async () => {
+        try {
+          const sr = await fetch(`/docket_report/status/${jobId}`);
+          const sd = await sr.json();
+          if (sd.logs && sd.logs.length > lastLogLen) {
+            sd.logs.slice(lastLogLen).forEach(l => dktLog(l));
+            lastLogLen = sd.logs.length;
+          }
+          if (sd.status === 'done') {
+            clearInterval(dktPollTimer); dktPollTimer = null;
+            btn.disabled = false; btn.textContent = '⚡ Generate Report';
+            dl.href = `/docket_report/download/${jobId}`;
+            dl.download = `docket_report_${dateDdMmYyyy}.xlsx`;
+            dl.style.display = 'flex';
+            showToast('success', '✅', 'Docket report ready!', 'Click Download XLSX.');
+          } else if (sd.status === 'error') {
+            clearInterval(dktPollTimer); dktPollTimer = null;
+            btn.disabled = false; btn.textContent = '⚡ Generate Report';
+            dktLog('FAILED: ' + (sd.error || 'Unknown error'));
+            showToast('error', '❌', 'Docket report failed', 'Check the progress log for details.');
+          }
+        } catch (e) { /* ignore poll errors */ }
+      }, 1500);
+    }
+
+    async function dktGenerate() {
+      const raw = document.getElementById('dkt-date').value;  // yyyy-mm-dd
+      if (!raw) { alert('Please choose a date.'); return; }
+      const [y, m, d] = raw.split('-');
+      const dateStr = `${d}-${m}-${y}`;  // DD-MM-YYYY expected by the server
+
+      const btn = document.getElementById('dkt-gen-btn');
+      btn.disabled = true; btn.textContent = '⏳ Generating…';
+      document.getElementById('dkt-dl').style.display = 'none';
+      dktLogClear();
+      dktLog(`Starting docket report for ${dateStr}…`);
+
+      try {
+        const resp = await fetch('/docket_report/start', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ date: dateStr })
+        });
+        const data = await resp.json();
+        if (data.error) { dktLog('Error: ' + data.error); btn.disabled = false; btn.textContent = '⚡ Generate Report'; return; }
+        dktLog(`Job started (${data.job_id}), please wait…`);
+        _dktStartPolling(data.job_id, dateStr);
+      } catch (e) {
+        dktLog('Request failed: ' + e.message);
+        btn.disabled = false; btn.textContent = '⚡ Generate Report';
+      }
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────────
+    // Init
+    // ─────────────────────────────────────────────────────────────────────────────
+    document.addEventListener('DOMContentLoaded', () => {
+      setupAC('src', 'ac-src');
+      setupAC('tgt', 'ac-tgt');
+      loadNodes();
+      loadAll();
+      rptDetectMode();   // hides server-only controls (e.g. header "Reports Folder" button) for LAN users right away
     });
-    const data = await resp.json();
-    if(data.error){ rptLog('Error: '+data.error); btn.disabled=false; btn.textContent='⚡ Generate Report'; return; }
-    rptLog(`Job started (${data.job_id}), please wait…`);
-    _rptStartPolling(data.job_id, output);
-  } catch(e){
-    rptLog('Request failed: '+e.message);
-    btn.disabled=false; btn.textContent='⚡ Generate Report';
-  }
-}
-
-function rptLog(msg){
-  const el = document.getElementById('rpt-log');
-  el.textContent += (el.textContent ? '\n' : '') + msg;
-  el.scrollTop = el.scrollHeight;
-}
-function rptLogClear(){
-  document.getElementById('rpt-log').textContent='';
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Docket Report Modal
-// ─────────────────────────────────────────────────────────────────────────────
-let dktPollTimer = null;
-
-function openDocketModal(){
-  document.getElementById('docket-modal').classList.add('open');
-  const dateEl = document.getElementById('dkt-date');
-  if(!dateEl.value){
-    const today = new Date();
-    dateEl.value = today.toISOString().slice(0,10);  // yyyy-mm-dd for <input type=date>
-  }
-  dktLogClear();
-  document.getElementById('dkt-dl').style.display = 'none';
-  const btn = document.getElementById('dkt-gen-btn');
-  btn.disabled = false; btn.textContent = '⚡ Generate Report';
-}
-
-function closeDocketModal(){
-  document.getElementById('docket-modal').classList.remove('open');
-  if(dktPollTimer){ clearInterval(dktPollTimer); dktPollTimer=null; }
-}
-
-function handleDktOverlayClick(e){
-  if(e.target === document.getElementById('docket-modal')) closeDocketModal();
-}
-
-function dktLog(msg){
-  const el = document.getElementById('dkt-log');
-  el.textContent += (el.textContent ? '\n' : '') + msg;
-  el.scrollTop = el.scrollHeight;
-}
-function dktLogClear(){
-  document.getElementById('dkt-log').textContent = '';
-}
-
-function _dktStartPolling(jobId, dateDdMmYyyy){
-  const btn = document.getElementById('dkt-gen-btn');
-  const dl  = document.getElementById('dkt-dl');
-  let lastLogLen = 0;
-  dktPollTimer = setInterval(async ()=>{
-    try{
-      const sr = await fetch(`/docket_report/status/${jobId}`);
-      const sd = await sr.json();
-      if(sd.logs && sd.logs.length > lastLogLen){
-        sd.logs.slice(lastLogLen).forEach(l => dktLog(l));
-        lastLogLen = sd.logs.length;
-      }
-      if(sd.status === 'done'){
-        clearInterval(dktPollTimer); dktPollTimer=null;
-        btn.disabled=false; btn.textContent='⚡ Generate Report';
-        dl.href = `/docket_report/download/${jobId}`;
-        dl.download = `docket_report_${dateDdMmYyyy}.xlsx`;
-        dl.style.display = 'flex';
-        showToast('success','✅','Docket report ready!','Click Download XLSX.');
-      } else if(sd.status === 'error'){
-        clearInterval(dktPollTimer); dktPollTimer=null;
-        btn.disabled=false; btn.textContent='⚡ Generate Report';
-        dktLog('FAILED: '+(sd.error||'Unknown error'));
-        showToast('error','❌','Docket report failed','Check the progress log for details.');
-      }
-    } catch(e){ /* ignore poll errors */ }
-  }, 1500);
-}
-
-async function dktGenerate(){
-  const raw = document.getElementById('dkt-date').value;  // yyyy-mm-dd
-  if(!raw){ alert('Please choose a date.'); return; }
-  const [y,m,d] = raw.split('-');
-  const dateStr = `${d}-${m}-${y}`;  // DD-MM-YYYY expected by the server
-
-  const btn = document.getElementById('dkt-gen-btn');
-  btn.disabled = true; btn.textContent = '⏳ Generating…';
-  document.getElementById('dkt-dl').style.display = 'none';
-  dktLogClear();
-  dktLog(`Starting docket report for ${dateStr}…`);
-
-  try{
-    const resp = await fetch('/docket_report/start',{
-      method:'POST', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({date: dateStr})
-    });
-    const data = await resp.json();
-    if(data.error){ dktLog('Error: '+data.error); btn.disabled=false; btn.textContent='⚡ Generate Report'; return; }
-    dktLog(`Job started (${data.job_id}), please wait…`);
-    _dktStartPolling(data.job_id, dateStr);
-  } catch(e){
-    dktLog('Request failed: '+e.message);
-    btn.disabled=false; btn.textContent='⚡ Generate Report';
-  }
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Init
-// ─────────────────────────────────────────────────────────────────────────────
-document.addEventListener('DOMContentLoaded', ()=>{
-  setupAC('src','ac-src');
-  setupAC('tgt','ac-tgt');
-  loadNodes();
-  loadAll();
-});
-</script>
+  </script>
 </body>
+
 </html>

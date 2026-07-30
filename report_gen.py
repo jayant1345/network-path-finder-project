@@ -204,8 +204,148 @@ def _filter_dl_nodes(df, aip_col='IP A End', zip_col='IP Z End'):
 
 
 # ── Input readers ──────────────────────────────────────────────────────────────
-def read_card_off(path, report_date):
-    df = pd.read_excel(path, dtype=str)
+# Each downstream reader (read_card_off / read_device_off / read_fan_fail)
+# expects different column names for the same 6 entity parts
+# (IP, Name, Type, Circle, Region/SSA, Card/Phase). Build columns
+# per-report-type only — mixing both naming variants into one dict
+# creates duplicate-named columns after the readers' rename() calls.
+_COMBINED_ROW_BUILDERS = {
+    'card_off': lambda ip, name, typ, circle, region, card: {
+        'IP': ip, 'NAME': name, 'TYPE': typ, 'CIRCLE': circle,
+        'REGION': region, 'PHASE': card,
+    },
+    'device_off': lambda ip, name, typ, circle, region, card: {
+        'IP': ip, 'NAME': name, 'TYPE': typ, 'CIRCLE': circle,
+        'REGION': region, 'PHASE': card,
+    },
+    'fan_fail': lambda ip, name, typ, circle, region, card: {
+        'IP': ip, 'Name': name, 'Type': typ, 'Circle': circle,
+        'SSA': region, 'PHASE': card,
+    },
+}
+
+# EMS Alarm ID values that map to each report type (used for the flat CSV export)
+_ALARM_ID_TO_KEY = {
+    'CardOffline':   'card_off',
+    'DeviceOffLine': 'device_off',
+    'FAN1_FAIL':     'fan_fail',
+    'FAN2_FAIL':     'fan_fail',
+    'FAN3_FAIL':     'fan_fail',
+    'FAN4_FAIL':     'fan_fail',
+}
+
+
+def _clean_str_cols(df):
+    """Strip whitespace/tabs from text columns. pandas >= 3.0 defaults text
+    columns to dtype 'str', not 'object' — is_string_dtype() catches both so
+    cleaning doesn't silently no-op."""
+    for col in df.columns:
+        if pd.api.types.is_string_dtype(df[col]) or df[col].dtype == object:
+            df[col] = df[col].astype(str).str.strip().str.lstrip('\t')
+    return df
+
+
+def _rows_from_alarm_df(df, key):
+    """Parse 'Alarm Entity' (IP_Name_Type_Circle_Region_Card\\Port) + 'Create Time'
+    rows into the column shape read_card_off/read_device_off/read_fan_fail expect."""
+    builder = _COMBINED_ROW_BUILDERS[key]
+    has_alarm_id = 'Alarm ID' in df.columns
+    parsed_rows = []
+    for _, row in df.iterrows():
+        entity = str(row['Alarm Entity']).strip()
+        if entity.startswith('\\'):
+            entity = entity[1:]
+        parts = entity.split('_')
+        if len(parts) == 6:
+            rec = builder(parts[0], parts[1], parts[2], parts[3], parts[4], parts[5])
+            rec['Create Time'] = str(row['Create Time']).strip()
+            # FAN1_FAIL..FAN4_FAIL: preserve which fan failed — read_fan_fail
+            # keeps this as its 'Alarm ID' column, other readers ignore it.
+            if key == 'fan_fail' and has_alarm_id:
+                rec['Alarm ID'] = str(row['Alarm ID']).strip()
+            parsed_rows.append(rec)
+    return pd.DataFrame(parsed_rows) if parsed_rows else None
+
+
+def _parse_combined_xls(xls_path):
+    """Reads a 3-sheet 'CPAN Card FAN Device Fail.xls' (sheets: Card Offline,
+    Device Offline, FAN Fail). Returns {'card_off': df, ...} or {} on error."""
+    xl_file = pd.ExcelFile(xls_path)
+
+    sheet_map = {}
+    for s in xl_file.sheet_names:
+        s_clean = s.strip().lower()
+        if s_clean == 'card offline':
+            sheet_map['card_off'] = s
+        elif s_clean == 'device offline':
+            sheet_map['device_off'] = s
+        elif s_clean == 'fan fail':
+            sheet_map['fan_fail'] = s
+
+    result = {}
+    for key, sheet in sheet_map.items():
+        df = xl_file.parse(sheet)
+        df = _clean_str_cols(df)
+        if 'Alarm Entity' not in df.columns or 'Create Time' not in df.columns:
+            continue
+        parsed = _rows_from_alarm_df(df, key)
+        if parsed is not None:
+            result[key] = parsed
+    return result
+
+
+def _parse_combined_csv(csv_path):
+    """
+    Reads the flat 'Combined_Failures.csv' export from the CPAN EMS — one table
+    with every alarm type, distinguished by the 'Alarm ID' column (e.g.
+    CardOffline, DeviceOffLine, FAN1_FAIL..FAN4_FAIL, plus many unrelated
+    transmission/QoS alarms that are ignored here).
+    Returns {'card_off': df, 'device_off': df, 'fan_fail': df} or {} on error.
+    """
+    try:
+        df = pd.read_csv(csv_path, dtype=str, encoding='utf-8-sig', on_bad_lines='warn')
+    except Exception:
+        df = pd.read_csv(csv_path, dtype=str, encoding='latin1', on_bad_lines='warn')
+    df.columns = [c.strip() for c in df.columns]
+    df = _clean_str_cols(df)
+
+    if 'Alarm ID' not in df.columns or 'Alarm Entity' not in df.columns or 'Create Time' not in df.columns:
+        return {}
+
+    result = {}
+    for key in ('card_off', 'device_off', 'fan_fail'):
+        alarm_ids = [aid for aid, k in _ALARM_ID_TO_KEY.items() if k == key]
+        sub = df[df['Alarm ID'].isin(alarm_ids)]
+        if sub.empty:
+            continue
+        parsed = _rows_from_alarm_df(sub, key)
+        if parsed is not None:
+            result[key] = parsed
+    return result
+
+
+def parse_combined_xls(combined_path):
+    """
+    Reads the combined card/device/fan failures export — either the flat EMS
+    'Combined_Failures.csv' (current format) or the older 3-sheet
+    'CPAN Card FAN Device Fail.xls'. Dispatches on file extension.
+    Returns {'card_off': df, 'device_off': df, 'fan_fail': df} or {} on error.
+    """
+    try:
+        if str(combined_path).lower().endswith('.csv'):
+            return _parse_combined_csv(combined_path)
+        return _parse_combined_xls(combined_path)
+    except Exception:
+        # Return empty dict on error so we fallback to individual files
+        return {}
+
+
+def read_card_off(path_or_df, report_date):
+    if isinstance(path_or_df, pd.DataFrame):
+        df = path_or_df.copy()
+    else:
+        df = pd.read_excel(path_or_df, dtype=str)
+
     df.columns = [c.strip() for c in df.columns]
     cols = list(df.columns)
 
@@ -246,8 +386,12 @@ def read_card_off(path, report_date):
     return df[[c for c in out_cols if c in df.columns]]
 
 
-def read_device_off(path, report_date, dash_df=None):
-    df = pd.read_excel(path, dtype=str)
+def read_device_off(path_or_df, report_date, dash_df=None):
+    if isinstance(path_or_df, pd.DataFrame):
+        df = path_or_df.copy()
+    else:
+        df = pd.read_excel(path_or_df, dtype=str)
+
     df.columns = [c.strip() for c in df.columns]
     df = df.rename(columns={
         'IP': 'Node IP', 'NAME': 'Node Name', 'TYPE': 'Type',
@@ -292,8 +436,12 @@ def read_device_off(path, report_date, dash_df=None):
     return df[[c for c in want if c in df.columns]]
 
 
-def read_fan_fail(path, report_date):
-    df = pd.read_excel(path, dtype=str)
+def read_fan_fail(path_or_df, report_date):
+    if isinstance(path_or_df, pd.DataFrame):
+        df = path_or_df.copy()
+    else:
+        df = pd.read_excel(path_or_df, dtype=str)
+
     df.columns = [c.strip() for c in df.columns]
     df = df.rename(columns={
         'IP': 'Node IP', 'Name': 'Node Name', 'Type': 'Type',
@@ -443,9 +591,9 @@ _SHEETS_ORDER = ['CARD-OFF-R', 'DEVICE-OFF-R', 'FAN-FAIL-R', 'DL-FAIL-R']
 
 
 # ── xlsx sheet writer ──────────────────────────────────────────────────────────
-def _write_sheet(wb, tab_name, title, headers, data_rows, date_str):
+def _write_sheet(wb, tab_name, title, headers, data_rows, date_str, tab_color="00B050"):
     ws = wb.create_sheet(title=tab_name)
-    ws.sheet_properties.tabColor = "00B050"   # green tab
+    ws.sheet_properties.tabColor = tab_color
     n_cols = len(headers)
 
     # Row 1: title banner
@@ -1140,7 +1288,7 @@ def _write_dl_down_rt_sheet(wb, df, date_str):
 def generate_report(file_map, report_date, output_path, links_df=None):
     """
     file_map   : dict  {'card_off': path, 'device_off': path, 'fan_fail': path,
-                         'dl_fail': path, 'dash_down': path}
+                         'dl_fail': path, 'dash_down': path, 'combined_fail': path}
     report_date: datetime
     output_path: str  — where to save the .xlsx
     links_df   : optional DataFrame from links.csv for DL bandwidth lookup
@@ -1148,6 +1296,18 @@ def generate_report(file_map, report_date, output_path, links_df=None):
     """
     logs = []
     date_str = report_date.strftime('%d-%m-%Y')
+
+    # Try combined XLS file first
+    combined_dfs = {}
+    if file_map.get('combined_fail'):
+        combined_path = file_map['combined_fail']
+        if os.path.isfile(combined_path):
+            logs.append(f"  Detected combined failures file: {os.path.basename(combined_path)}")
+            combined_dfs = parse_combined_xls(combined_path)
+            if combined_dfs:
+                logs.append(f"  Combined file parsed successfully: {list(combined_dfs.keys())} sheets loaded")
+            else:
+                logs.append("  Failed to parse combined failures file sheets")
 
     # Read DASH-DOWN first (needed for DEVICE-OFF reason lookup)
     dash_df = None
@@ -1165,11 +1325,23 @@ def generate_report(file_map, report_date, output_path, links_df=None):
 
     # CARD-OFF-R
     card_df = None
-    if file_map.get('card_off'):
+    card_source = combined_dfs.get('card_off') if combined_dfs else None
+    if card_source is not None:
+        try:
+            card_df = read_card_off(card_source, report_date)
+            _write_sheet(wb, 'CARD-OFF-R', 'CARD OFFLINE REPORT',
+                         list(card_df.columns), card_df.values.tolist(), date_str,
+                         tab_color="00B050")
+            sheet_dfs['CARD-OFF-R'] = card_df
+            logs.append(f"  CARD-OFF-R: {len(card_df)} rows (from combined file)")
+        except Exception as e:
+            logs.append(f"  CARD-OFF-R: SKIP combined — {e}")
+    elif file_map.get('card_off'):
         try:
             card_df = read_card_off(file_map['card_off'], report_date)
             _write_sheet(wb, 'CARD-OFF-R', 'CARD OFFLINE REPORT',
-                         list(card_df.columns), card_df.values.tolist(), date_str)
+                         list(card_df.columns), card_df.values.tolist(), date_str,
+                         tab_color="00B050")
             sheet_dfs['CARD-OFF-R'] = card_df
             logs.append(f"  CARD-OFF-R: {len(card_df)} rows")
         except Exception as e:
@@ -1177,11 +1349,23 @@ def generate_report(file_map, report_date, output_path, links_df=None):
 
     # DEVICE-OFF-R
     dev_df = None
-    if file_map.get('device_off'):
+    dev_source = combined_dfs.get('device_off') if combined_dfs else None
+    if dev_source is not None:
+        try:
+            dev_df = read_device_off(dev_source, report_date, dash_df)
+            _write_sheet(wb, 'DEVICE-OFF-R', 'DEVICE OFFLINE REPORT',
+                         list(dev_df.columns), dev_df.values.tolist(), date_str,
+                         tab_color="2E75B6")
+            sheet_dfs['DEVICE-OFF-R'] = dev_df
+            logs.append(f"  DEVICE-OFF-R: {len(dev_df)} rows (from combined file)")
+        except Exception as e:
+            logs.append(f"  DEVICE-OFF-R: SKIP combined — {e}")
+    elif file_map.get('device_off'):
         try:
             dev_df = read_device_off(file_map['device_off'], report_date, dash_df)
             _write_sheet(wb, 'DEVICE-OFF-R', 'DEVICE OFFLINE REPORT',
-                         list(dev_df.columns), dev_df.values.tolist(), date_str)
+                         list(dev_df.columns), dev_df.values.tolist(), date_str,
+                         tab_color="2E75B6")
             sheet_dfs['DEVICE-OFF-R'] = dev_df
             logs.append(f"  DEVICE-OFF-R: {len(dev_df)} rows")
         except Exception as e:
@@ -1189,11 +1373,23 @@ def generate_report(file_map, report_date, output_path, links_df=None):
 
     # FAN-FAIL-R
     fan_df = None
-    if file_map.get('fan_fail'):
+    fan_source = combined_dfs.get('fan_fail') if combined_dfs else None
+    if fan_source is not None:
+        try:
+            fan_df = read_fan_fail(fan_source, report_date)
+            _write_sheet(wb, 'FAN-FAIL-R', 'FAN FAILURE REPORT',
+                         list(fan_df.columns), fan_df.values.tolist(), date_str,
+                         tab_color="7030A0")
+            sheet_dfs['FAN-FAIL-R'] = fan_df
+            logs.append(f"  FAN-FAIL-R: {len(fan_df)} rows (from combined file)")
+        except Exception as e:
+            logs.append(f"  FAN-FAIL-R: SKIP combined — {e}")
+    elif file_map.get('fan_fail'):
         try:
             fan_df = read_fan_fail(file_map['fan_fail'], report_date)
             _write_sheet(wb, 'FAN-FAIL-R', 'FAN FAILURE REPORT',
-                         list(fan_df.columns), fan_df.values.tolist(), date_str)
+                         list(fan_df.columns), fan_df.values.tolist(), date_str,
+                         tab_color="7030A0")
             sheet_dfs['FAN-FAIL-R'] = fan_df
             logs.append(f"  FAN-FAIL-R: {len(fan_df)} rows")
         except Exception as e:
@@ -1205,7 +1401,8 @@ def generate_report(file_map, report_date, output_path, links_df=None):
         try:
             dl_df = read_dl_fail(file_map['dl_fail'], report_date, links_df)
             _write_sheet(wb, 'DL-FAIL-R', 'CPAN DL FAIL REPORT',
-                         list(dl_df.columns), dl_df.values.tolist(), date_str)
+                         list(dl_df.columns), dl_df.values.tolist(), date_str,
+                         tab_color="ED7D31")
             sheet_dfs['DL-FAIL-R'] = dl_df
             logs.append(f"  DL-FAIL-R: {len(dl_df)} rows")
         except Exception as e:
@@ -1222,7 +1419,8 @@ def generate_report(file_map, report_date, output_path, links_df=None):
             fdf = fdf.reset_index(drop=True)
             fdf.insert(0, 'Sr', range(1, len(fdf) + 1))
             _write_sheet(wb, 'DASH-DOWN-R', 'CPAN NODE FAILURE REPORT (>3 Days)',
-                         list(fdf.columns), fdf.values.tolist(), date_str)
+                         list(fdf.columns), fdf.values.tolist(), date_str,
+                         tab_color="00B0F0")
             logs.append(f"  DASH-DOWN-R: {len(fdf)} rows")
         except Exception as e:
             logs.append(f"  DASH-DOWN-R: SKIP — {e}")

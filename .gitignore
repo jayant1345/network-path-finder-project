@@ -4,3 +4,5 @@ __pycache__/
 *.pyo
 .env
 docket_reports/
+shared_transfer/
+transfer_config.json

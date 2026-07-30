@@ -1,4 +1,5 @@
-from flask import Flask, render_template, request, jsonify, send_file
+from flask import Flask, render_template, request, jsonify, send_file, session
+from werkzeug.utils import secure_filename
 import pandas as pd
 import networkx as nx
 import os
@@ -9,6 +10,8 @@ import time
 import threading
 import uuid
 import zipfile
+import hashlib
+import secrets as _secrets
 from datetime import datetime
 
 import docket_scraper
@@ -34,8 +37,10 @@ def clean_and_rebuild(df):
     """Clean dataframe and rebuild all derived data + graph."""
     global df_raw, df_down, df_10g, G, G10, ip_name_map
 
+    # pandas >= 3.0 defaults text columns to dtype 'str', not 'object' —
+    # is_string_dtype() catches both so cleaning doesn't silently no-op.
     for col in df.columns:
-        if df[col].dtype == object:
+        if pd.api.types.is_string_dtype(df[col]) or df[col].dtype == object:
             df[col] = df[col].astype(str).str.strip().str.lstrip('\t')
 
     df['Bandwidth']    = df['Bandwidth'].str.strip()
@@ -367,11 +372,32 @@ def report_open_output_folder():
     os.startfile(folder)
     return jsonify({'folder': folder})
 
+@app.route('/report/set_output_folder', methods=['POST'])
+def report_set_output_folder():
+    """Set the base output folder from a typed path (works for LAN users too —
+    unlike /report/browse_output_folder, this doesn't need a native dialog on
+    the server's screen, so it also accepts shared/UNC paths like \\\\SERVER\\Reports."""
+    global _custom_output_dir
+    data   = request.json or {}
+    folder = (data.get('folder') or '').strip()
+    if not folder:
+        return jsonify({'error': 'No folder path given'}), 400
+    folder = folder.replace('/', '\\')
+    try:
+        os.makedirs(folder, exist_ok=True)
+    except Exception as e:
+        return jsonify({'error': f'Could not access or create that folder: {e}'}), 400
+    _custom_output_dir = folder
+    _save_config({'output_dir': folder})
+    return jsonify({'folder': folder})
+
 @app.route('/report/get_output_folder')
 def report_get_output_folder():
     default = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'reports_output')
     folder  = _custom_output_dir or default
-    return jsonify({'folder': folder, 'is_custom': bool(_custom_output_dir)})
+    today_folder = os.path.join(folder, datetime.now().strftime('%d-%m-%Y'))
+    return jsonify({'folder': folder, 'is_custom': bool(_custom_output_dir),
+                     'today_folder': today_folder})
 
 @app.route('/report/browse_template')
 def report_browse_template():
@@ -396,6 +422,7 @@ def report_browse_template():
 # ── CPAN Daily Report Generation ──────────────────────────────────────────────
 _REPORT_GREEN_COLOR = "FF00FF00"
 _REPORT_FILE_PATTERNS = {
+    "combined_fail": ["CPAN Card FAN Device Fail", "Combined_Failures", "Combined Failures"],
     "card_off":   ["CARD OFFLINE"],
     "device_off": ["DEVICE OFFLINE"],
     "fan_fail":   ["FAN FAILURE"],
@@ -460,10 +487,10 @@ def _find_report_input_files(folder, date_str):
         ]
 
         all_files = os.listdir(folder)
-        all_xlsx  = [f for f in all_files if f.lower().endswith('.xlsx')]
+        all_xlsx  = [f for f in all_files if f.lower().endswith(('.xlsx', '.xls'))]
         all_csv   = [f for f in all_files if f.lower().endswith('.csv')]
 
-        _CSV_KEYS = {'dash_down', 'dl_down', 'dl_alarms'}
+        _CSV_KEYS = {'dash_down', 'dl_down', 'dl_alarms', 'combined_fail'}
 
         for key, prefixes in _REPORT_FILE_PATTERNS.items():
             if key in _CSV_KEYS:
@@ -748,17 +775,20 @@ def report_start():
     if not out_name.lower().endswith('.xlsx'):
         out_name += '.xlsx'
 
-    # Output always goes to server-side reports_output; LAN users download via /report/download
-    default_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'reports_output')
-    reports_dir = _custom_output_dir if _custom_output_dir else default_dir
-    os.makedirs(reports_dir, exist_ok=True)
-    output_path = os.path.join(reports_dir, out_name)
-
     try:
         parts = date_str.split('-')
         report_date = datetime(int(parts[2]), int(parts[1]), int(parts[0]))
     except Exception:
         return jsonify({'error': 'Invalid date format, expected DD-MM-YYYY'}), 400
+
+    # Reports auto-save into a dated subfolder under the base output folder
+    # (e.g. <base>\27-07-2026\) so each day's reports land somewhere fresh —
+    # LAN users download via /report/download either way.
+    default_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'reports_output')
+    base_dir    = _custom_output_dir if _custom_output_dir else default_dir
+    reports_dir = os.path.join(base_dir, date_str)
+    os.makedirs(reports_dir, exist_ok=True)
+    output_path = os.path.join(reports_dir, out_name)
 
     # Snapshot df_raw NOW in the main thread before handing off to the background
     # thread — prevents any pandas operation inside report_gen from touching the
@@ -855,6 +885,201 @@ def docket_report_download(job_id):
     if not os.path.exists(path):
         return jsonify({'error': 'Output file not found on server'}), 404
     return send_file(path, as_attachment=True, download_name=os.path.basename(path))
+
+# ── LAN File Transfer ──────────────────────────────────────────────────────────
+# Browser-based upload/download so office PCs with no internet can move files
+# to/from each other over the LAN via this server. Confined to a dedicated
+# shared_transfer/ folder; password-gated since every LAN PC can already
+# reach this app with no login.
+_TRANSFER_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'shared_transfer')
+os.makedirs(_TRANSFER_DIR, exist_ok=True)
+_TRANSFER_CONFIG_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'transfer_config.json')
+_DEFAULT_TRANSFER_PASSWORD = 'cpan2026'
+
+def _load_transfer_config():
+    import json
+    if os.path.exists(_TRANSFER_CONFIG_FILE):
+        try:
+            with open(_TRANSFER_CONFIG_FILE) as f:
+                cfg = json.load(f)
+            if 'password_hash' in cfg and 'secret_key' in cfg:
+                return cfg
+        except Exception:
+            pass
+    cfg = {
+        'password_hash': hashlib.sha256(_DEFAULT_TRANSFER_PASSWORD.encode()).hexdigest(),
+        'secret_key': _secrets.token_hex(32),
+    }
+    with open(_TRANSFER_CONFIG_FILE, 'w') as f:
+        json.dump(cfg, f, indent=2)
+    print(f"[File Transfer] Created transfer_config.json — default password: {_DEFAULT_TRANSFER_PASSWORD}")
+    print("[File Transfer] Change it from the File Transfer tab after logging in once.")
+    return cfg
+
+_transfer_cfg = _load_transfer_config()
+app.secret_key = _transfer_cfg['secret_key']
+
+def _transfer_authed():
+    return session.get('transfer_auth') is True
+
+def _safe_transfer_path(subpath):
+    """Resolve subpath under _TRANSFER_DIR; return None if it would escape the shared folder."""
+    subpath = (subpath or '').strip().strip('/\\')
+    root = os.path.realpath(_TRANSFER_DIR)
+    target = os.path.realpath(os.path.join(root, subpath))
+    if target != root and not target.startswith(root + os.sep):
+        return None
+    return target
+
+@app.route('/transfer/status')
+def transfer_status():
+    return jsonify({'authed': _transfer_authed()})
+
+@app.route('/transfer/login', methods=['POST'])
+def transfer_login():
+    data = request.json or {}
+    pw = (data.get('password') or '').encode()
+    if hashlib.sha256(pw).hexdigest() == _transfer_cfg['password_hash']:
+        session['transfer_auth'] = True
+        session.permanent = True
+        return jsonify({'ok': True})
+    return jsonify({'ok': False, 'error': 'Wrong password'}), 401
+
+@app.route('/transfer/logout', methods=['POST'])
+def transfer_logout():
+    session.pop('transfer_auth', None)
+    return jsonify({'ok': True})
+
+@app.route('/transfer/change_password', methods=['POST'])
+def transfer_change_password():
+    if not _transfer_authed():
+        return jsonify({'error': 'Not authenticated'}), 401
+    data = request.json or {}
+    current = (data.get('current') or '').encode()
+    new_pw  = (data.get('new') or '').strip()
+    if hashlib.sha256(current).hexdigest() != _transfer_cfg['password_hash']:
+        return jsonify({'error': 'Current password is incorrect'}), 400
+    if len(new_pw) < 4:
+        return jsonify({'error': 'New password must be at least 4 characters'}), 400
+    import json
+    _transfer_cfg['password_hash'] = hashlib.sha256(new_pw.encode()).hexdigest()
+    with open(_TRANSFER_CONFIG_FILE, 'w') as f:
+        json.dump(_transfer_cfg, f, indent=2)
+    return jsonify({'ok': True})
+
+@app.route('/transfer/list')
+def transfer_list():
+    if not _transfer_authed():
+        return jsonify({'error': 'Not authenticated'}), 401
+    subpath = request.args.get('path', '')
+    target = _safe_transfer_path(subpath)
+    if target is None or not os.path.isdir(target):
+        return jsonify({'error': 'Invalid path'}), 400
+    entries = []
+    for name in os.listdir(target):
+        full = os.path.join(target, name)
+        try:
+            st = os.stat(full)
+        except OSError:
+            continue
+        entries.append({
+            'name': name,
+            'is_dir': os.path.isdir(full),
+            'size': st.st_size,
+            'modified': datetime.fromtimestamp(st.st_mtime).strftime('%Y-%m-%d %H:%M:%S'),
+        })
+    entries.sort(key=lambda e: (not e['is_dir'], e['name'].lower()))
+    return jsonify({'path': subpath.strip('/\\'), 'entries': entries})
+
+@app.route('/transfer/upload', methods=['POST'])
+def transfer_upload():
+    if not _transfer_authed():
+        return jsonify({'error': 'Not authenticated'}), 401
+    subpath    = request.form.get('path', '')
+    target_dir = _safe_transfer_path(subpath)
+    if target_dir is None or not os.path.isdir(target_dir):
+        return jsonify({'error': 'Invalid path'}), 400
+    files = request.files.getlist('files')
+    if not files:
+        return jsonify({'error': 'No files received'}), 400
+    saved = []
+    for f in files:
+        if not f.filename:
+            continue
+        name = secure_filename(f.filename)
+        if not name:
+            continue
+        dest = os.path.join(target_dir, name)
+        base, ext = os.path.splitext(name)
+        i = 1
+        while os.path.exists(dest):   # avoid clobbering existing files
+            dest = os.path.join(target_dir, f"{base} ({i}){ext}")
+            i += 1
+        f.save(dest)
+        saved.append(os.path.basename(dest))
+    return jsonify({'ok': True, 'saved': saved})
+
+@app.route('/transfer/download')
+def transfer_download():
+    if not _transfer_authed():
+        return jsonify({'error': 'Not authenticated'}), 401
+    target = _safe_transfer_path(request.args.get('path', ''))
+    if target is None or not os.path.isfile(target):
+        return jsonify({'error': 'File not found'}), 404
+    return send_file(target, as_attachment=True, download_name=os.path.basename(target))
+
+@app.route('/transfer/download_zip')
+def transfer_download_zip():
+    if not _transfer_authed():
+        return jsonify({'error': 'Not authenticated'}), 401
+    target = _safe_transfer_path(request.args.get('path', ''))
+    if target is None or not os.path.isdir(target):
+        return jsonify({'error': 'Folder not found'}), 404
+    buf = io.BytesIO()
+    with zipfile.ZipFile(buf, 'w', zipfile.ZIP_DEFLATED) as zf:
+        for root, _dirs, files in os.walk(target):
+            for fn in files:
+                full = os.path.join(root, fn)
+                zf.write(full, os.path.relpath(full, target))
+    buf.seek(0)
+    zip_name = (os.path.basename(target.rstrip(os.sep)) or 'shared_transfer') + '.zip'
+    return send_file(buf, as_attachment=True, download_name=zip_name, mimetype='application/zip')
+
+@app.route('/transfer/mkdir', methods=['POST'])
+def transfer_mkdir():
+    if not _transfer_authed():
+        return jsonify({'error': 'Not authenticated'}), 401
+    data   = request.json or {}
+    name   = secure_filename((data.get('name') or '').strip())
+    parent = _safe_transfer_path(data.get('path', ''))
+    if not name:
+        return jsonify({'error': 'Invalid folder name'}), 400
+    if parent is None or not os.path.isdir(parent):
+        return jsonify({'error': 'Invalid path'}), 400
+    new_dir = os.path.join(parent, name)
+    if os.path.exists(new_dir):
+        return jsonify({'error': 'Already exists'}), 400
+    os.makedirs(new_dir)
+    return jsonify({'ok': True})
+
+@app.route('/transfer/delete', methods=['POST'])
+def transfer_delete():
+    if not _transfer_authed():
+        return jsonify({'error': 'Not authenticated'}), 401
+    data   = request.json or {}
+    parent = _safe_transfer_path(data.get('path', ''))
+    if parent is None or not os.path.isdir(parent):
+        return jsonify({'error': 'Invalid path'}), 400
+    target = os.path.realpath(os.path.join(parent, data.get('name', '')))
+    if target != parent and not target.startswith(parent + os.sep):
+        return jsonify({'error': 'Invalid name'}), 400
+    if not os.path.exists(target):
+        return jsonify({'error': 'Not found'}), 404
+    if os.path.isdir(target):
+        shutil.rmtree(target)
+    else:
+        os.remove(target)
+    return jsonify({'ok': True})
 
 # ──────────────────────────────────────────────────────────────────────────────
 if __name__ == '__main__':

@@ -8,6 +8,7 @@ Used by server.py's /docket_report/* routes (background job pattern).
 """
 import os
 import re
+import time
 import urllib.request
 from datetime import datetime, timedelta
 
@@ -198,13 +199,15 @@ def _parse_issue_detail(html):
             if len(cell_els) != 4:
                 continue
             date_modified, username, field, change = [c.get_text(strip=True) for c in cell_els]
-            # Only "-> resolved" credits the technical fix. "-> closed" is a
-            # separate, later confirmation step - often done by the reporter
-            # (field staff) rather than whoever actually did the work - so it
-            # must NOT overwrite cleared_by. If a docket is reopened and
-            # resolved again, the loop keeps scanning and the last "->
-            # resolved" wins, correctly reflecting the final fix.
-            if field == "Status" and re.search(r"=>\s*resolved", change, re.I):
+            # Credit whoever set Resolution -> fixed, not just Status ->
+            # resolved: a docket can be "resolved" with a non-technical
+            # resolution (duplicate, won't fix, unable to reproduce), which
+            # isn't real CPAN work. "-> closed" (a separate, later
+            # confirmation step, often done by the reporter rather than
+            # whoever did the work) is never matched here either way. If a
+            # docket is reopened and fixed again, the loop keeps scanning and
+            # the last "-> fixed" wins, correctly reflecting the final fix.
+            if field == "Resolution" and re.search(r"=>\s*fixed", change, re.I):
                 cleared_on, cleared_by = date_modified, username
                 username_link = cell_els[1].find("a")
                 cleared_by_name = username_link.get("title", "") if username_link else ""
@@ -308,16 +311,45 @@ def _detect_proxy(log=print):
     return {"server": server}
 
 
-def _enrich_issue(context, issue):
+def _enrich_issue(context, issue, log=print):
     """Fetches a docket's detail page and fills in its clear/category/work-type
-    fields in place (mutates issue)."""
+    fields in place (mutates issue). Retries a few times on transient network
+    errors (e.g. connection reset on a flaky LAN/proxy) before giving up on
+    just this one docket - so one bad request doesn't fail the whole ~150-
+    docket job and throw away everything already fetched. A docket that still
+    fails after retries gets blank clear/date fields, which safely excludes
+    it from "Booked This Window"/"Cleared This Window" rather than crashing."""
     bug_id = issue["Docket ID"].lstrip("0") or "0"
-    resp = context.request.get(f"{BASE_URL}/view.php?id={bug_id}")
-    date_submitted, cleared_on, cleared_by, cleared_by_name, amount_of_work = _parse_issue_detail(resp.text())
+    url = f"{BASE_URL}/view.php?id={bug_id}"
+    resp = None
+    last_error = None
+    for attempt in range(1, 4):
+        try:
+            resp = context.request.get(url)
+            break
+        except Exception as e:
+            last_error = e
+            if attempt < 3:
+                time.sleep(2)
+
     raw_category = _strip_category_prefix(issue["Category"])  # Complaint/Service/General, pre-fold
     issue["Category (Raw)"] = raw_category
     issue["Category"] = _normalize_category(raw_category)
     issue["Work Type"] = _classify_work_type(issue["Category"])
+
+    if resp is None:
+        log(f"  WARNING: could not fetch docket {issue['Docket ID']} after 3 attempts "
+            f"({last_error}) - skipping its clear/date details, it will be excluded "
+            f"from this report. Check it manually if needed.")
+        issue["Amount of Work"] = _normalize_amount_of_work(None)
+        issue["Date Submitted"] = ""
+        issue["Cleared By"] = ""
+        issue["Cleared By Name"] = ""
+        issue["Cleared On"] = ""
+        issue["Time to Clear"] = ""
+        return
+
+    date_submitted, cleared_on, cleared_by, cleared_by_name, amount_of_work = _parse_issue_detail(resp.text())
     issue["Amount of Work"] = _normalize_amount_of_work(amount_of_work)
     issue["Date Submitted"] = date_submitted
     issue["Cleared By"] = cleared_by
@@ -360,7 +392,7 @@ def _scrape_dockets(date_str, username, password, login_url, log=print):
             f"= {len(issues)} unique candidates. Fetching per-docket clear details...")
 
         for i, issue in enumerate(issues, 1):
-            _enrich_issue(context, issue)
+            _enrich_issue(context, issue, log=log)
             if i % 20 == 0 or i == len(issues):
                 log(f"  {i}/{len(issues)} processed")
 
@@ -540,24 +572,38 @@ def _compute_final_table(df, start_dt, end_dt, cpan_roster=None):
     window regardless of when they were booked — so old backlog that finally
     gets resolved during this shift is credited to it.
 
-    cpan_roster: if given (see _load_cpan_staff_roster), a docket cleared by
-    someone NOT in the roster is treated as not resolved at all - it falls
-    back into "Total Pending Dockets" instead of "Total Resolved", since only
-    CPAN staff can validly resolve a docket. None means no filtering (count
-    everyone), matching behavior before this feature existed."""
+    cpan_roster: if given (see _load_cpan_staff_roster), "Total Resolved"
+    only counts dockets cleared by roster IDs - someone else clearing a
+    docket (e.g. a reporter self-closing after CPAN's diagnostic feedback)
+    doesn't credit CPAN, but the docket is still genuinely closed in GCS, so
+    it does NOT count as "Total Pending Dockets" either - it shows in the
+    separate "Closed by Others" bucket instead. Pending only ever means
+    genuinely still open in GCS, regardless of roster. None means no
+    filtering (count everyone as CPAN, no "Closed by Others" bucket),
+    matching behavior before this feature existed."""
     night_cutoff = start_dt.replace(hour=NIGHT_START_HOUR, minute=0, second=0)
     submitted = pd.to_datetime(df["Date Submitted"], format="%Y-%m-%d %H:%M", errors="coerce")
     cleared = pd.to_datetime(df["Cleared On"], format="%Y-%m-%d %H:%M", errors="coerce")
     is_creation = df["Work Type"] == "Service Creation"
     is_maintenance = df["Work Type"] == "Maintenance"
     booked_mask = df["Booked This Window"]
-    resolved_mask = df["Cleared This Window"]  # cleared within window, incl. old backlog
+    actually_resolved_mask = df["Cleared This Window"]  # genuine fact: closed in GCS this window, incl. old backlog, regardless of who
     if cpan_roster is not None:
-        resolved_mask = resolved_mask & df["Cleared By"].isin(cpan_roster)
+        resolved_mask = actually_resolved_mask & df["Cleared By"].isin(cpan_roster)
+        closed_by_others_mask = actually_resolved_mask & ~df["Cleared By"].isin(cpan_roster)
+    else:
+        resolved_mask = actually_resolved_mask
+        closed_by_others_mask = pd.Series(False, index=df.index)
     is_feedback = df["Status"].str.contains("feedback", case=False, na=False)
 
     def counts(mask):
         return int((mask & is_creation).sum()), int((mask & is_maintenance).sum())
+
+    def docket_ids(mask):
+        return (
+            df.loc[mask & is_creation, "Docket ID"].tolist(),
+            df.loc[mask & is_maintenance, "Docket ID"].tolist(),
+        )
 
     def work_sum(mask):
         return (
@@ -568,6 +614,7 @@ def _compute_final_table(df, start_dt, end_dt, cpan_roster=None):
     total_c, total_m = counts(booked_mask)
     resolved_c, resolved_m = counts(resolved_mask)
     resolved_work_c, resolved_work_m = work_sum(resolved_mask)
+    closed_by_others_c, closed_by_others_m = counts(closed_by_others_mask)
     feedback_c, feedback_m = counts(booked_mask & is_feedback)
 
     # "Total Resolved" mixes two different populations: dockets booked AND
@@ -584,7 +631,7 @@ def _compute_final_table(df, start_dt, end_dt, cpan_roster=None):
     night_resolved_mask = resolved_mask & (cleared >= night_cutoff)
     night_resolved_c, night_resolved_m = counts(night_resolved_mask)
 
-    pending_before_night_mask = booked_mask & (submitted < night_cutoff) & (~resolved_mask | (cleared >= night_cutoff))
+    pending_before_night_mask = booked_mask & (submitted < night_cutoff) & (~actually_resolved_mask | (cleared >= night_cutoff))
     pending_before_c, pending_before_m = counts(pending_before_night_mask)
 
     booked_after_night_mask = booked_mask & (submitted >= night_cutoff)
@@ -592,20 +639,21 @@ def _compute_final_table(df, start_dt, end_dt, cpan_roster=None):
 
     total_night_c = pending_before_c + booked_after_c
     total_night_m = pending_before_m + booked_after_m
+    total_night_mask = pending_before_night_mask | booked_after_night_mask
 
     now = pd.Timestamp.now()
     age_days = (now - submitted).dt.total_seconds() / 86400
-    still_pending = booked_mask & ~resolved_mask
+    still_pending = booked_mask & ~actually_resolved_mask  # genuinely open, not just "not credited to CPAN"
 
     def aging(lo, hi):
         mask = still_pending & (age_days >= lo)
         if hi is not None:
             mask &= age_days < hi
-        return counts(mask)
+        return counts(mask), docket_ids(mask)
 
-    p_lt1_c, p_lt1_m = aging(0, 1)
-    p_1to3_c, p_1to3_m = aging(1, 3)
-    p_gt3_c, p_gt3_m = aging(3, None)
+    (p_lt1_c, p_lt1_m), p_lt1_ids = aging(0, 1)
+    (p_1to3_c, p_1to3_m), p_1to3_ids = aging(1, 3)
+    (p_gt3_c, p_gt3_m), p_gt3_ids = aging(3, None)
 
     return {
         "total": (total_c, total_m),
@@ -613,15 +661,24 @@ def _compute_final_table(df, start_dt, end_dt, cpan_roster=None):
         "resolved_work": (resolved_work_c, resolved_work_m),
         "resolved_from_today": (resolved_from_today_c, resolved_from_today_m),
         "resolved_backlog": (resolved_backlog_c, resolved_backlog_m),
+        "closed_by_others": (closed_by_others_c, closed_by_others_m),
+        "closed_by_others_ids": docket_ids(closed_by_others_mask),
         "feedback": (feedback_c, feedback_m),
         "daytime_resolved": (daytime_c, daytime_m),
         "pending_before_night": (pending_before_c, pending_before_m),
+        "pending_before_night_ids": docket_ids(pending_before_night_mask),
         "booked_after_night": (booked_after_c, booked_after_m),
+        "booked_after_night_ids": docket_ids(booked_after_night_mask),
         "total_night": (total_night_c, total_night_m),
+        "total_night_ids": docket_ids(total_night_mask),
         "night_resolved": (night_resolved_c, night_resolved_m),
         "pending_lt1": (p_lt1_c, p_lt1_m),
+        "pending_lt1_ids": p_lt1_ids,
         "pending_1to3": (p_1to3_c, p_1to3_m),
+        "pending_1to3_ids": p_1to3_ids,
         "pending_gt3": (p_gt3_c, p_gt3_m),
+        "pending_gt3_ids": p_gt3_ids,
+        "total_pending_ids": docket_ids(still_pending),
     }
 
 
@@ -685,32 +742,46 @@ def _write_final_report_sheet(writer, df, start_dt, end_dt, cpan_roster=None):
     for j, label in enumerate(["Creation", "Maintenance", "Total"], 2):
         styled(header_row_b, j, label, fill=header_fill, font=bold, align=center)
 
-    def row_vals(label, pair, row, fill=None, font=bold):
+    def row_vals(label, pair, row, fill=None, font=bold, ids=None):
         c, mv = pair
         styled(row, 1, label, fill=fill, font=font)
-        styled(row, 2, c, fill=fill, align=center)
-        styled(row, 3, mv, fill=fill, align=center)
-        styled(row, 4, c + mv, fill=fill, align=center)
+        cell_c = styled(row, 2, c, fill=fill, align=center)
+        cell_m = styled(row, 3, mv, fill=fill, align=center)
+        cell_t = styled(row, 4, c + mv, fill=fill, align=center)
+        if ids:
+            ids_c, ids_m = ids
+            if ids_c:
+                cell_c.comment = Comment("Docket IDs:\n" + ", ".join(ids_c), "GCS")
+            if ids_m:
+                cell_m.comment = Comment("Docket IDs:\n" + ", ".join(ids_m), "GCS")
+            if ids_c or ids_m:
+                cell_t.comment = Comment("Docket IDs:\n" + ", ".join(ids_c + ids_m), "GCS")
 
     sub_font = Font(italic=True, size=10, color="555555")
+
+    closed_by_others_fill = PatternFill(start_color="E0E0E0", end_color="E0E0E0", fill_type="solid")
 
     row_vals("Today's Booking", m["total"], 9, fill=green_fill)
     row_vals("Total Resolved", m["resolved"], 10, fill=green_fill)
     row_vals("    of which: from Today's Booking", m["resolved_from_today"], 11, font=sub_font)
     row_vals("    of which: Old Backlog Cleared Today", m["resolved_backlog"], 12, font=sub_font)
-    row_vals("Returned in Feedback", m["feedback"], 13, font=magenta_bold)
-    row_vals("Dockets Resolved in Daytime", m["daytime_resolved"], 14, fill=green_fill)
-    row_vals(f"Dockets Pending at {start_dt:%d-%m-%Y} 08:00 PM", m["pending_before_night"], 15)
-    row_vals("Dockets Booked after 08:00 PM", m["booked_after_night"], 16)
-    row_vals("Total Dockets for Night Duty", m["total_night"], 17, fill=yellow_fill)
-    row_vals("Dockets Resolved in Night Duty", m["night_resolved"], 18, fill=green_fill)
-    row_vals("Pending  < 1 Day", m["pending_lt1"], 19, font=red_bold)
-    row_vals("Pending  1 - 3 days", m["pending_1to3"], 20, font=red_bold)
-    row_vals("Pending  > 3 Days", m["pending_gt3"], 21, font=red_bold)
+    row_vals("Closed by Others (Non-CPAN)", m["closed_by_others"], 13, fill=closed_by_others_fill,
+              ids=m["closed_by_others_ids"])
+    row_vals("Returned in Feedback", m["feedback"], 14, font=magenta_bold)
+    row_vals("Dockets Resolved in Daytime", m["daytime_resolved"], 15, fill=green_fill)
+    row_vals(f"Dockets Pending at {start_dt:%d-%m-%Y} 08:00 PM", m["pending_before_night"], 16,
+              ids=m["pending_before_night_ids"])
+    row_vals("Dockets Booked after 08:00 PM", m["booked_after_night"], 17, ids=m["booked_after_night_ids"])
+    row_vals("Total Dockets for Night Duty", m["total_night"], 18, fill=yellow_fill, ids=m["total_night_ids"])
+    row_vals("Dockets Resolved in Night Duty", m["night_resolved"], 19, fill=green_fill)
+    row_vals("Pending  < 1 Day", m["pending_lt1"], 20, font=red_bold, ids=m["pending_lt1_ids"])
+    row_vals("Pending  1 - 3 days", m["pending_1to3"], 21, font=red_bold, ids=m["pending_1to3_ids"])
+    row_vals("Pending  > 3 Days", m["pending_gt3"], 22, font=red_bold, ids=m["pending_gt3_ids"])
 
     total_pending_c = m["pending_lt1"][0] + m["pending_1to3"][0] + m["pending_gt3"][0]
     total_pending_m = m["pending_lt1"][1] + m["pending_1to3"][1] + m["pending_gt3"][1]
-    row_vals("Total Pending Dockets", (total_pending_c, total_pending_m), 22, fill=pink_fill, font=red_bold)
+    row_vals("Total Pending Dockets", (total_pending_c, total_pending_m), 23, fill=pink_fill, font=red_bold,
+              ids=m["total_pending_ids"])
 
     # KPI: average clear time per docket (Date Submitted -> Cleared On), among
     # everything cleared this window (incl. old backlog) — staff-performance metric.
@@ -721,12 +792,12 @@ def _write_final_report_sheet(writer, df, start_dt, end_dt, cpan_roster=None):
     avg_m = _format_duration_minutes(_avg_clear_minutes(cleared_df, "Maintenance"))
     avg_all = _format_duration_minutes(_avg_clear_minutes(cleared_df))
     kpi_fill = PatternFill(start_color=FINAL_HEADER_BG, end_color=FINAL_HEADER_BG, fill_type="solid")
-    styled(24, 1, "Avg Time per Docket (KPI)", fill=kpi_fill, font=bold)
-    styled(24, 2, avg_c, fill=kpi_fill, align=center)
-    styled(24, 3, avg_m, fill=kpi_fill, align=center)
-    styled(24, 4, avg_all, fill=kpi_fill, align=center)
+    styled(25, 1, "Avg Time per Docket (KPI)", fill=kpi_fill, font=bold)
+    styled(25, 2, avg_c, fill=kpi_fill, align=center)
+    styled(25, 3, avg_m, fill=kpi_fill, align=center)
+    styled(25, 4, avg_all, fill=kpi_fill, align=center)
 
-    ws.cell(row=26, column=1, value=(
+    ws.cell(row=27, column=1, value=(
         "Note: All figures computed automatically from GCS timestamps - no manual entry. "
         f"Day duty ends {NIGHT_START_HOUR}:00; Night duty {NIGHT_START_HOUR}:00-08:00. "
         "Pending-aging is measured from Date Submitted to report-generation time, scoped "
@@ -734,7 +805,11 @@ def _write_final_report_sheet(writer, df, start_dt, end_dt, cpan_roster=None):
         "dockets cleared this window, including old backlog resolved during this shift. "
         "'Total Resolved' = booked-and-cleared-today + old-backlog-cleared-today (see the "
         "two sub-rows below it) - so 'Today's Booking minus Total Resolved' is not the same "
-        "number as 'Total Pending Dockets'; use the 'from Today's Booking' sub-row for that comparison."
+        "number as 'Total Pending Dockets'; use the 'from Today's Booking' sub-row for that comparison. "
+        "'Closed by Others (Non-CPAN)' = dockets genuinely closed in GCS (e.g. self-resolved by the "
+        "reporter after CPAN's diagnostic feedback) but not by a roster ID - not credited as CPAN's "
+        "resolved work, but also correctly excluded from Total Pending Dockets since they aren't "
+        "actually open anymore. Hover over any pending/night-duty figure to see the actual Docket IDs behind it."
     )).font = Font(italic=True, size=9, color="0000FF")
 
     widths = [40, 12, 12, 12, 12, 12, 12]
